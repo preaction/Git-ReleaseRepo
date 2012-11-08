@@ -19,6 +19,7 @@ has config_file => (
 has config => (
     is      => 'ro',
     isa     => 'YAML::Tiny',
+    lazy    => 1,
     default => sub {
         my ( $self ) = @_;
         if ( -f $self->config_file ) {
