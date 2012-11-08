@@ -26,3 +26,8 @@ This application is for creating and managing a release repository, filled with 
     # Do the release
     releaserepo release v1.00
 
+=head1 COPYRIGHT AND LICENSE
+
+Copyright (c) 2012 Doug Bell (preaction)
+
+This library is free software; you can redistribute it and/or modify it under the same terms as Perl itself.
