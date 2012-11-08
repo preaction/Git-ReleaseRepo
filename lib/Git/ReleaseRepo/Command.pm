@@ -51,6 +51,17 @@ has git => (
     },
 );
 
+sub submodule {
+    my ( $self ) = @_;
+    my %submodules;
+    for my $line ( $self->git->run( 'submodule' ) ) {
+        # <status><SHA1 hash> <submodule> (ref name)
+        $line =~ m{^.(\S+)\s(\S+)};
+        $submodules{ $2 } = $1;
+    }
+    return wantarray ? %submodules : \%submodules;
+}
+
 sub execute {
     my ( $self, $opt, $args ) = @_;
     inner();
