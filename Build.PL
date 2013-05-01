@@ -2,7 +2,7 @@
 use Module::Build;
 
 my $build = Module::Build->new(
-    module => 'Git::ReleaseRepo',
+    module_name => 'Git::ReleaseRepo',
     requires => {
         'Git::Repository' => 1.26,
         'App::Cmd'        => 0.318,
