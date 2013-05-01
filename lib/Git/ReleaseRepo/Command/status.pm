@@ -12,6 +12,7 @@ augment execute => sub {
     my ( $self, $opt, $args ) = @_;
     my $git = $self->git;
     my %submod_refs = $self->submodule;
+    my @outdated;
 
     for my $submod ( keys %submod_refs ) {
         my $subgit = Git::Repository->new(
@@ -19,16 +20,18 @@ augment execute => sub {
                     );
         my %remote = $self->ls_remote( $subgit );
         if ( $submod_refs{ $submod } ne $remote{'refs/heads/master'} ) {
-            say "$submod out of date";
+            push @outdated, $submod;
         }
     }
+
+    print map { sprintf "\%s is out of date\n", $_ } sort @outdated;
 };
 
 sub ls_remote {
     my ( $self, $git ) = @_;
     my %refs;
-    my @lines = $git->run( 'ls-remote', 'origin' );
-    for my $line ( @lines ) {
+    my $cmd = $git->command( 'ls-remote', 'origin' );
+    while ( defined( my $line = readline $cmd->stdout ) ) {
         # <SHA1 hash> <symbolic ref>
         my ( $ref_id, $ref_name ) = split /\s+/, $line;
         $refs{ $ref_name } = $ref_id;
