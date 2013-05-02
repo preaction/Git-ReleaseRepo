@@ -6,7 +6,7 @@ use Moose;
 use App::Cmd::Setup -command;
 use YAML::Tiny;
 use File::HomeDir;
-use File::Spec::Functions qw( catfile );
+use File::Spec::Functions qw( catfile catdir );
 use Git::Repository;
 
 has config_file => (
@@ -62,12 +62,40 @@ sub submodule {
     return wantarray ? %submodules : \%submodules;
 }
 
+sub outdated {
+    my ( $self ) = @_;
+    my $git = $self->git;
+    my %submod_refs = $self->submodule;
+    my @outdated;
+    for my $submod ( keys %submod_refs ) {
+        my $subgit = Git::Repository->new(
+                        work_tree => catdir( $self->git->work_tree, $submod ),
+                    );
+        my %remote = $self->ls_remote( $subgit );
+        if ( $submod_refs{ $submod } ne $remote{'refs/heads/master'} ) {
+            push @outdated, $submod;
+        }
+    }
+    return @outdated;
+}
+
+sub ls_remote {
+    my ( $self, $git ) = @_;
+    my %refs;
+    my $cmd = $git->command( 'ls-remote', 'origin' );
+    while ( defined( my $line = readline $cmd->stdout ) ) {
+        # <SHA1 hash> <symbolic ref>
+        my ( $ref_id, $ref_name ) = split /\s+/, $line;
+        $refs{ $ref_name } = $ref_id;
+    }
+    return wantarray ? %refs : \%refs;
+}
+
 sub execute {
     my ( $self, $opt, $args ) = @_;
     inner();
     $self->write_config;
 }
-
 
 no Moose;
 __PACKAGE__->meta->make_immutable;
