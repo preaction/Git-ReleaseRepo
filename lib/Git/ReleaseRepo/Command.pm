@@ -51,6 +51,18 @@ has git => (
     },
 );
 
+has release_prefix => (
+    is      => 'ro',
+    isa     => 'Str',
+    lazy    => 1,
+    default => sub {
+        my ( $self ) = @_;
+        my $repo = $self->config->[0];
+        my $repo_name = [keys %$repo]->[0];
+        return $repo->{$repo_name}{release_prefix};
+    },
+);
+
 sub submodule {
     my ( $self ) = @_;
     my %submodules;
@@ -63,7 +75,8 @@ sub submodule {
 }
 
 sub outdated {
-    my ( $self ) = @_;
+    my ( $self, $ref ) = @_;
+    $ref ||= "refs/heads/master";
     my $git = $self->git;
     my %submod_refs = $self->submodule;
     my @outdated;
@@ -72,11 +85,40 @@ sub outdated {
                         work_tree => catdir( $self->git->work_tree, $submod ),
                     );
         my %remote = $self->ls_remote( $subgit );
-        if ( $submod_refs{ $submod } ne $remote{'refs/heads/master'} ) {
+        if ( !exists $remote{ $ref } || $submod_refs{ $submod } ne $remote{$ref} ) {
             push @outdated, $submod;
         }
     }
     return @outdated;
+}
+
+sub checkout {
+    my ( $self, $commit ) = @_;
+    $self->git->run( checkout => $commit );
+    $self->git->run( submodule => update => '--init' );
+}
+
+sub list_versions {
+    my ( $self ) = @_;
+    my $prefix = $self->release_prefix;
+    my %refs = $self->ls_remote( $self->git );
+    #; use Data::Dumper; print Dumper \%refs;
+    my @versions = reverse sort version_sort grep { m{^$prefix} } map { (split "/", $_)[-1] } keys %refs;
+    #; use Data::Dumper; print Dumper \@versions;
+    return @versions;
+}
+
+sub latest_version {
+    my ( $self ) = @_;
+    my @versions = $self->list_versions;
+    return $versions[0];
+}
+
+sub version_sort {
+    my @a = split /[.]/, $a;
+    my @b = split /[.]/, $b;
+    my $format = "%s." . ( "%03i" x ( @a > @b ? @a-1 : @b-1 ) );
+    return sprintf( $format, @a ) cmp sprintf( $format, @b );
 }
 
 sub ls_remote {
