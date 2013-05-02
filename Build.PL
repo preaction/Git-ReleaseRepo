@@ -9,6 +9,10 @@ my $build = Module::Build->new(
         'File::HomeDir'   => 1.00,
         'YAML::Tiny'      => 1.51,
     },
+    test_requires => {
+        'Test::Most'      => 0,
+        'File::Temp'      => 0,
+    },
     license => 'perl',
 );
 $build->create_build_script;
