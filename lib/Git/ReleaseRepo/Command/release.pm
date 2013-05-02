@@ -16,6 +16,13 @@ sub validate_args {
 augment execute => sub {
     my ( $self, $opt, $args ) = @_;
     my $version = $args->[0];
+    $self->checkout;
+    # Branch all modules too!
+    for my $module ( keys $self->submodule ) {
+        my $subgit = $self->submodule_git( $module );
+        $subgit->run( branch => $version );
+        $subgit->run( push => origin => "$version:$version" );
+    }
     $self->git->run( branch => $version );
     $self->git->run( push => origin => "$version:$version" );
 };

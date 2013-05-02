@@ -74,6 +74,13 @@ sub submodule {
     return wantarray ? %submodules : \%submodules;
 }
 
+sub submodule_git {
+    my ( $self, $module ) = @_;
+    return Git::Repository->new(
+        work_tree => catdir( $self->git->work_tree, $module ),
+    );
+}
+
 sub outdated {
     my ( $self, $ref ) = @_;
     $ref ||= "refs/heads/master";
@@ -81,9 +88,7 @@ sub outdated {
     my %submod_refs = $self->submodule;
     my @outdated;
     for my $submod ( keys %submod_refs ) {
-        my $subgit = Git::Repository->new(
-                        work_tree => catdir( $self->git->work_tree, $submod ),
-                    );
+        my $subgit = $self->submodule_git( $submod );
         my %remote = $self->ls_remote( $subgit );
         if ( !exists $remote{ $ref } || $submod_refs{ $submod } ne $remote{$ref} ) {
             push @outdated, $submod;
