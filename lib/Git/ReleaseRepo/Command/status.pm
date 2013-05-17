@@ -11,6 +11,7 @@ augment execute => sub {
     my $latest_version = $self->latest_version;
     my %outdated = map { $_ => 1 } $self->outdated;
     my %diff = $latest_version ? map { $_ => 1 } $self->outdated( 'refs/tags/' . $latest_version ) 
+            # If we haven't had a release yet, everything we have is different
              : map { $_ => 1 } keys %{$self->submodule};
 
     my $header = "Changes since " . ( $latest_version || "development started" );
