@@ -7,15 +7,16 @@ extends 'Git::ReleaseRepo::Command';
 use File::Spec::Functions qw( catdir );
 use Git::Repository;
 
-sub opt_spec {
+around opt_spec => sub {
+    my ( $orig, $self ) = @_;
     return (
+        $self->$orig(),
         [ 'all|a' => "Add all out-of-date modules to the release" ],
     );
-}
+};
 
 sub validate_args {
     my ( $self, $opt, $args ) = @_;
-    #; use Data::Dumper; print Dumper $opt; print Dumper $args;
     if ( $opt->all ) { 
         if ( @$args ) {
             return $self->usage_error( "--all does not make sense with module names to add" );
@@ -40,15 +41,15 @@ augment execute => sub {
         }
         my $message = "Updating all outdated:\n"
                     . join "\n", map { sprintf "\t\%s", $_ } sort @outdated;
-        $self->git->run( commit => @outdated, -m => $message );
+        $self->git->run( commit => ( '.gitmodules', @outdated ), -m => $message );
     }
     elsif ( @$args == 1 ) {
         $self->update_submodule( @$args );
-        $self->git->run( commit => $args->[0], -m => "Updating $args->[0]" );
+        $self->git->run( commit => ( '.gitmodules', $args->[0] ), -m => "Updating $args->[0]" );
     }
     elsif ( @$args == 2 ) {
         $self->add_submodule( @$args );
-        $self->git->run( commit => $args->[0], -m => "Adding $args->[0] to release" );
+        $self->git->run( commit => ( '.gitmodules', $args->[0] ), -m => "Adding $args->[0] to release" );
     }
 };
 
@@ -66,16 +67,11 @@ sub update_submodule {
 
 sub add_submodule {
     my ( $self, $module, $repo ) = @_;
-    my $subgitdir = catdir( $self->git->work_tree, $module );
-    Git::Repository->run( clone => $repo, $subgitdir );
-    my $subgit = Git::Repository->new(
-        work_tree => $subgitdir,
+    my $git = $self->git;
+    $git->run(
+        submodule => add => '--', $repo, $module,
     );
-    $self->git->run(
-        submodule => add => $repo, $module,
-        { env => { GIT_WORK_TREE => undef } },
-    );
-    $self->git->run( commit => $module, -m => "Adding $module to release" );
+    $git->run( commit => $module, -m => "Adding $module to release" );
 }
 
 no Moose;

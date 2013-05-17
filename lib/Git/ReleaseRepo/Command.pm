@@ -37,16 +37,29 @@ sub write_config {
     return $self->config->write( $self->config_file );
 }
 
+has repo_name => (
+    is      => 'rw',
+    isa     => 'Str',
+    lazy    => 1,
+    default => sub { (keys %{$_[0]->config})[0] },
+);
+
+has repo_dir => (
+    is      => 'rw',
+    isa     => 'Str',
+    lazy    => 1,
+    default => sub { $_[0]->config->{$_[0]->repo_name}{work_tree} },
+);
+
 has git => (
     is      => 'ro',
     isa     => 'Git::Repository',
     lazy    => 1,
     default => sub {
-        my ( $self ) = @_;
-        my $repo = $self->config->[0];
-        my $repo_name = [keys %$repo]->[0];
+        my $repo_dir = $_[0]->repo_dir;
         return Git::Repository->new(
-            work_tree => $repo->{$repo_name}{work_tree},
+            work_tree => $_[0]->repo_dir,
+            git_dir => catdir( $_[0]->repo_dir, '.git' ),
         );
     },
 );
@@ -107,9 +120,7 @@ sub list_versions {
     my ( $self ) = @_;
     my $prefix = $self->release_prefix;
     my %refs = $self->ls_remote( $self->git );
-    #; use Data::Dumper; print Dumper \%refs;
     my @versions = reverse sort version_sort grep { m{^$prefix} } map { (split "/", $_)[-1] } keys %refs;
-    #; use Data::Dumper; print Dumper \@versions;
     return @versions;
 }
 
@@ -138,8 +149,17 @@ sub ls_remote {
     return wantarray ? %refs : \%refs;
 }
 
+sub opt_spec {
+    return (
+        [ 'repo_dir:s' => 'The path to the release repository' ],
+    );
+}
+
 sub execute {
     my ( $self, $opt, $args ) = @_;
+    if ( exists $opt->{repo_dir} ) {
+        $self->repo_dir( $opt->{repo_dir} );
+    }
     inner();
     $self->write_config;
 }

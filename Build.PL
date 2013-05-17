@@ -12,6 +12,8 @@ my $build = Module::Build->new(
     test_requires => {
         'Test::Most'      => 0,
         'File::Temp'      => 0,
+        'File::Spec::Functions' => 0,
+        'File::Slurp'     => 0,
     },
     license => 'perl',
 );
