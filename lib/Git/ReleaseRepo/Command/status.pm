@@ -29,9 +29,9 @@ augment execute => sub {
     my @changed = sort( uniq( keys %outdated, keys %diff ) );
     #; use Data::Dumper; print Dumper \@changed;
     for my $changed ( @changed ) {
-        print "$changed ";
+        print "$changed";
         if ( !$latest_version || $diff{ $changed } ) {
-            print "changed";
+            print " changed";
         }
         if ( $outdated{$changed} ) {
             print " (can add)";
