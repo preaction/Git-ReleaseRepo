@@ -38,4 +38,14 @@ Branches will only ever be m/^${PREFIX}\d+[.]\d+/.
 
 See also: http://semver.org/
 
+=head2 MAJOR/MINOR VERSIONS
+
+New major and minor versions are created from HEAD. When a new major/minor release
+is created, a new branch is created to allow for bugfix versions.
+
+The same branches are created in submodules to allow for bugfix commits.
+
+=head2 BUGFIX VERSIONS
+
+New bugfix versions are created from the release branch.
 
