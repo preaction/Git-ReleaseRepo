@@ -65,7 +65,7 @@ has git => (
 );
 
 has release_prefix => (
-    is      => 'ro',
+    is      => 'rw',
     isa     => 'Str',
     lazy    => 1,
     default => sub {
@@ -104,6 +104,7 @@ sub outdated {
         my $subgit = $self->submodule_git( $submod );
         my %remote = $self->ls_remote( $subgit );
         if ( !exists $remote{ $ref } || $submod_refs{ $submod } ne $remote{$ref} ) {
+            print "OUTDATED $submod: $submod_refs{$submod} ne $remote{$ref}\n";
             push @outdated, $submod;
         }
     }
@@ -119,8 +120,8 @@ sub checkout {
 sub list_versions {
     my ( $self ) = @_;
     my $prefix = $self->release_prefix;
-    my %refs = $self->ls_remote( $self->git );
-    my @versions = reverse sort version_sort grep { m{^$prefix} } map { (split "/", $_)[-1] } keys %refs;
+    my %refs = $self->show_ref( $self->git );
+    my @versions = reverse sort version_sort grep { m{^$prefix} } map { (split "/", $_)[-1] } grep { m{^refs/tags/} } keys %refs;
     return @versions;
 }
 
@@ -131,10 +132,25 @@ sub latest_version {
 }
 
 sub version_sort {
-    my @a = split /[.]/, $a;
-    my @b = split /[.]/, $b;
-    my $format = "%s." . ( "%03i" x ( @a > @b ? @a-1 : @b-1 ) );
+    # Assume Semantic Versioning style, plus prefix
+    # %s.%i.%i%s
+    my @a = $a =~ /^\D*(\d+)[.](\d+)[.](\d+)/;
+    my @b = $b =~ /^\D*(\d+)[.](\d+)[.](\d+)/;
+
+    my $format = ( "%03i" x @a );
     return sprintf( $format, @a ) cmp sprintf( $format, @b );
+}
+
+sub show_ref {
+    my ( $self, $git ) = @_;
+    my %refs;
+    my $cmd = $git->command( 'show-ref' );
+    while ( defined( my $line = readline $cmd->stdout ) ) {
+        # <SHA1 hash> <symbolic ref>
+        my ( $ref_id, $ref_name ) = split /\s+/, $line;
+        $refs{ $ref_name } = $ref_id;
+    }
+    return wantarray ? %refs : \%refs;
 }
 
 sub ls_remote {
@@ -149,18 +165,30 @@ sub ls_remote {
     return wantarray ? %refs : \%refs;
 }
 
+sub has_remote {
+    my ( $self, $git, $name ) = @_;
+    return grep { $_ eq $name } $git->run( 'remote' );
+}
+
 sub opt_spec {
     return (
         [ 'repo_dir:s' => 'The path to the release repository' ],
+        [ 'prefix:s' => 'The release version prefix, like "v" or "ops-"' ],
     );
 }
 
 sub execute {
     my ( $self, $opt, $args ) = @_;
+
     if ( exists $opt->{repo_dir} ) {
         $self->repo_dir( $opt->{repo_dir} );
     }
+    if ( exists $opt->{prefix} ) {
+        $self->release_prefix( $opt->{prefix} );
+    }
+
     inner();
+
     $self->write_config;
 }
 
