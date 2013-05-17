@@ -117,18 +117,34 @@ sub checkout {
     $self->git->run( submodule => update => '--init' );
 }
 
-sub list_versions {
-    my ( $self ) = @_;
+sub list_version_refs {
+    my ( $self, $match ) = @_;
     my $prefix = $self->release_prefix;
     my %refs = $self->show_ref( $self->git );
-    my @versions = reverse sort version_sort grep { m{^$prefix} } map { (split "/", $_)[-1] } grep { m{^refs/tags/} } keys %refs;
+    my @versions = reverse sort version_sort grep { m{^$prefix} } map { (split "/", $_)[-1] } grep { m{^refs/$match/} } keys %refs;
     return @versions;
+}
+
+sub list_versions {
+    my ( $self ) = @_;
+    return $self->list_version_refs( 'tags' );
 }
 
 sub latest_version {
     my ( $self ) = @_;
     my @versions = $self->list_versions;
     return $versions[0];
+}
+
+sub list_release_branches {
+    my ( $self ) = @_;
+    return $self->list_version_refs( 'heads' );
+}
+
+sub latest_release_branch {
+    my ( $self ) = @_;
+    my @branches = $self->list_release_branches;
+    return $branches[0];
 }
 
 sub version_sort {
