@@ -5,6 +5,15 @@ use warnings;
 use List::MoreUtils qw( uniq );
 use Moose;
 extends 'Git::ReleaseRepo::Command';
+
+around opt_spec => sub {
+    my ( $orig, $self ) = @_;
+    return (
+        $self->$orig(),
+        [ 'bugfix' => 'Check the status of the current release branch' ],
+    );
+};
+
 augment execute => sub {
     my ( $self, $opt, $args ) = @_;
     $self->checkout;
