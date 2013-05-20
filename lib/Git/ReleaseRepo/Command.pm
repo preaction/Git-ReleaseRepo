@@ -104,7 +104,7 @@ sub outdated {
         my $subgit = $self->submodule_git( $submod );
         my %remote = $self->ls_remote( $subgit );
         if ( !exists $remote{ $ref } || $submod_refs{ $submod } ne $remote{$ref} ) {
-            print "OUTDATED $submod: $submod_refs{$submod} ne $remote{$ref}\n";
+            #print "OUTDATED $submod: $submod_refs{$submod} ne $remote{$ref}\n";
             push @outdated, $submod;
         }
     }
@@ -113,26 +113,38 @@ sub outdated {
 
 sub checkout {
     my ( $self, $commit ) = @_;
-    $self->git->run( checkout => $commit );
-    $self->git->run( submodule => update => '--init' );
+    $commit //= "master";
+    my $cmd = $self->git->command( checkout => $commit );
+    $cmd->close;
+    if ( $cmd->exit != 0 ) {
+        die "Could not checkout '$commit'.\nEXIT: " . $cmd->exit . "\nSTDERR: " . readline $cmd->stderr;
+    }
+    $cmd = $self->git->command( submodule => update => '--init' );
+    my @stderr = readline $cmd->stderr;
+    my @stdout = readline $cmd->stdout;
+    $cmd->close;
+    if ( $cmd->exit != 0 ) {
+        die "Could not update submodules to '$commit'.\nEXIT: " . $cmd->exit . "\nSTDERR: " . ( join "\n", @stderr )
+            . "\nSTDOUT: " . ( join "\n", @stdout );
+    }
 }
 
 sub list_version_refs {
-    my ( $self, $match ) = @_;
-    my $prefix = $self->release_prefix;
+    my ( $self, $match, $rel_branch ) = @_;
+    my $prefix = $rel_branch // $self->release_prefix;
     my %refs = $self->show_ref( $self->git );
     my @versions = reverse sort version_sort grep { m{^$prefix} } map { (split "/", $_)[-1] } grep { m{^refs/$match/} } keys %refs;
     return @versions;
 }
 
 sub list_versions {
-    my ( $self ) = @_;
-    return $self->list_version_refs( 'tags' );
+    my ( $self, $rel_branch ) = @_;
+    return $self->list_version_refs( 'tags', $rel_branch );
 }
 
 sub latest_version {
-    my ( $self ) = @_;
-    my @versions = $self->list_versions;
+    my ( $self, $rel_branch ) = @_;
+    my @versions = $self->list_versions( $rel_branch );
     return $versions[0];
 }
 
@@ -184,6 +196,11 @@ sub ls_remote {
 sub has_remote {
     my ( $self, $git, $name ) = @_;
     return grep { $_ eq $name } $git->run( 'remote' );
+}
+
+sub has_branch {
+    my ( $self, $git, $name ) = @_;
+    return grep { $_ eq $name } map { s/[*]?\s+//; $_ } $git->run( 'branch' );
 }
 
 sub opt_spec {

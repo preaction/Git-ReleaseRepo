@@ -16,21 +16,33 @@ around opt_spec => sub {
 
 augment execute => sub {
     my ( $self, $opt, $args ) = @_;
-    $self->checkout;
-    my $latest_version = $self->latest_version;
-    my %outdated = map { $_ => 1 } $self->outdated;
-    my %diff = $latest_version ? map { $_ => 1 } $self->outdated( 'refs/tags/' . $latest_version ) 
-            # If we haven't had a release yet, everything we have is different
-             : map { $_ => 1 } keys %{$self->submodule};
+    # "master" looks at master since latest release branch
+    # "bugfix" looks at release branch since latest release
+    my ( $since_version, %outdated, %diff );
+    if ( $opt->bugfix ) {
+        my $rel_branch = $self->latest_release_branch;
+        $self->checkout( $rel_branch );
+        $since_version = $self->latest_version( $rel_branch );
+        %outdated = map { $_ => 1 } $self->outdated( 'refs/heads/' . $rel_branch );
+        %diff = map { $_ => 1 } $self->outdated( 'refs/tags/' . $since_version );
+    }
+    else {
+        $self->checkout;
+        $since_version = $self->latest_release_branch;
+        %outdated = map { $_ => 1 } $self->outdated( 'refs/heads/master' );
+        %diff = $since_version ? map { $_ => 1 } $self->outdated( 'refs/tags/' . $since_version . '.0' ) 
+                # If we haven't had a release yet, everything we have is different
+                 : map { $_ => 1 } keys %{$self->submodule};
+    }
 
-    my $header = "Changes since " . ( $latest_version || "development started" );
+    my $header = "Changes since " . ( $since_version || "development started" );
     print $header . "\n";
     print "-" x length( $header ) . "\n";
     my @changed = sort( uniq( keys %outdated, keys %diff ) );
     #; use Data::Dumper; print Dumper \@changed;
     for my $changed ( @changed ) {
         print "$changed";
-        if ( !$latest_version || $diff{ $changed } ) {
+        if ( !$since_version || $diff{ $changed } ) {
             print " changed";
         }
         if ( $outdated{$changed} ) {
@@ -38,6 +50,7 @@ augment execute => sub {
         }
         print "\n";
     }
+    $self->checkout;
 };
 
 1;

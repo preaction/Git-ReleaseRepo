@@ -11,6 +11,7 @@ around opt_spec => sub {
     my ( $orig, $self ) = @_;
     return (
         $self->$orig(),
+        [ 'bugfix' => 'Add to the latest release branch as a bug fix' ],
         [ 'all|a' => "Add all out-of-date modules to the release" ],
     );
 };
@@ -34,35 +35,56 @@ sub validate_args {
 
 augment execute => sub {
     my ( $self, $opt, $args ) = @_;
+    my $branch;
+    if ( $opt->bugfix ) {
+        $branch = $self->latest_release_branch;
+        die "Cannot add with --bugfix: No release branch found!\n" if !$branch;
+    }
+    else {
+        $branch = "master";
+    }
+    if ( $self->has_branch( $self->git, $branch ) ) {
+        $self->checkout( $branch );
+    }
     if ( $opt->all ) {
         my @outdated = $self->outdated;
         for my $outdated ( @outdated ) {
-            $self->update_submodule( $outdated );
+            $self->update_submodule( $outdated, $branch );
         }
         my $message = "Updating all outdated:\n"
                     . join "\n", map { sprintf "\t\%s", $_ } sort @outdated;
-        $self->git->run( commit => ( '.gitmodules', @outdated ), -m => $message );
+        $self->git->run( commit => ( @outdated ), -m => $message );
     }
     elsif ( @$args == 1 ) {
-        $self->update_submodule( @$args );
-        $self->git->run( commit => ( '.gitmodules', $args->[0] ), -m => "Updating $args->[0]" );
+        $self->update_submodule( @$args, $branch );
+        $self->git->run( commit => ( @$args ), -m => "Updating $args->[0]" );
     }
     elsif ( @$args == 2 ) {
         $self->add_submodule( @$args );
         $self->git->run( commit => ( '.gitmodules', $args->[0] ), -m => "Adding $args->[0] to release" );
     }
+    $self->checkout;
 };
 
 sub update_submodule {
-    my ( $self, $module ) = @_;
+    my ( $self, $module, $branch ) = @_;
+    $branch ||= "master";
     if ( !$self->submodule->{ $module } ) {
         die "Cannot add $module: Submodule does not exist\n";
     }
     my $subgit = Git::Repository->new(
         work_tree => catdir( $self->git->work_tree, $module ),
     );
-    $subgit->run( 'fetch' );
-    $subgit->run( checkout => 'origin/master' );
+    my $cmd = $subgit->command( 'fetch' );
+    $cmd->close;
+    $cmd = $subgit->command( checkout => 'origin/' . $branch );
+    my @stdout = readline $cmd->stdout;
+    my @stderr = readline $cmd->stderr;
+    $cmd->close;
+    if ( $cmd->exit != 0 ) {
+        die "Could not checkout 'origin/$branch': \nSTDERR: " . ( join "\n", @stderr )
+            . "\nSTDOUT: " . ( join "\n", @stdout );
+    }
 }
 
 sub add_submodule {
@@ -71,7 +93,6 @@ sub add_submodule {
     $git->run(
         submodule => add => '--', $repo, $module,
     );
-    $git->run( commit => $module, -m => "Adding $module to release" );
 }
 
 no Moose;

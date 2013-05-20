@@ -10,6 +10,8 @@ use File::Slurp qw( read_file write_file );
 my $foo_repo = test_repository;
 my $bar_repo = test_repository;
 my $rel_repo = test_repository;
+#my $rel_repo = test_repository( temp => [ CLEANUP => 0 ] );
+#END { diag "Work tree: " . $rel_repo->work_tree; }
 
 my $foo_readme = catfile( $foo_repo->work_tree, 'README' );
 write_file( $foo_readme, 'Foo version 1.0' );
@@ -41,8 +43,10 @@ sub is_repo_clean($;$) {
 
 sub last_commit($) {
     my ( $git ) = @_;
-    my $cmd = $git->command( diff => '--raw', 'HEAD^' );
+    my $cmd = $git->command( 'diff-tree' => '--raw', '--root', 'HEAD' );
     my @lines = readline $cmd->stdout;
+    #; use Data::Dumper;
+    #; print Dumper \@lines;
     my @changes = map {; { 
                     mode_src => $_->[0], 
                     mode_dst => $_->[1], 
@@ -54,7 +58,7 @@ sub last_commit($) {
                 } }
                 map { [ split /\s+/, $_ ] }
                 map { s/^://; $_ }
-                @lines;
+                @lines[1..$#lines];
     #; diag explain \@changes;
     return @changes;
 }
@@ -72,15 +76,25 @@ sub repo_tags($) {
     return map { chomp; $_ } readline $cmd->stdout;
 }
 
+sub repo_refs($) {
+    my ( $git ) = @_;
+    my $cmd = $git->command( 'show-ref' );
+    return map { $_->[1], $_->[0] } map { [split] } readline $cmd->stdout;
+}
+
 subtest 'add new module' => sub {
-    my $r = Git::Repository->new( work_tree => $rel_repo->work_tree );
     my $result = run_cmd( 'Git::ReleaseRepo' => [ 'add', '--repo_dir', $rel_repo->work_tree, 'foo', $foo_repo->work_tree ] );
 
     subtest 'repository is correct' => sub {
         is_repo_clean $rel_repo;
         my @changes = last_commit $rel_repo;
-        is scalar @changes, 1, 'only one change was made';
-        is $changes[0]{path_src}, '.gitmodules', 'only change is to the gitmodules file';
+        is scalar @changes, 2, 'only two changes were made';
+        cmp_deeply \@changes,
+            bag( 
+                superhashof( { path_src => '.gitmodules' } ),
+                superhashof( { path_src => 'foo' } ),
+            ),
+            'changes to .gitmodules and foo';
 
         my $gitmodules = read_file( catfile( $rel_repo->work_tree, '.gitmodules' ) );
         like $gitmodules, qr{\[submodule\s+"foo"\]\s+path\s*=\s*foo}s, 'module has right name and path';
@@ -145,40 +159,69 @@ subtest 'first release' => sub {
 
 subtest 'add bugfix' => sub {
     # Foo has a bugfix
-    $foo_repo->run( checkout => 'v1.0' );
+    my $cmd = $foo_repo->command( checkout => 'v0.1' );
+    $cmd->close;
+    if ( $cmd->exit != 0 ) {
+        fail "Could not checkout Foo 'v0.1'.\nSTDERR: " . $cmd->stderr;
+    }
     write_file( $foo_readme, 'Foo version 2.1' );
     $foo_repo->run( add => $foo_readme );
     $foo_repo->run( commit => -m => 'Added bugfix' );
-    $foo_repo->run( checkout => 'master' );
+    $foo_repo->command( checkout => 'master' );
 
     subtest 'bugfix status is out-of-date' => sub {
         my $result = run_cmd( 'Git::ReleaseRepo' => [ 'status', '--bugfix', '--repo_dir', $rel_repo->work_tree, '--prefix', 'v' ] );
-        unlike $result->{stdout}, qr/foo changed/, 'foo has not been released';
+        unlike $result->{stdout}, qr/foo changed/, 'foo "v0.1" has not been released';
         like $result->{stdout}, qr/can add/, 'but can be updated';
     };
 
-    subtest 'release status is clean' => sub {
+    subtest 'release status is also out-of-date' => sub {
         my $result = run_cmd( 'Git::ReleaseRepo' => [ 'status', '--repo_dir', $rel_repo->work_tree, '--prefix', 'v' ] );
-        unlike $result->{stdout}, qr/foo changed/, 'foo has not been changed';
+        unlike $result->{stdout}, qr/foo changed/, 'foo "master" has not been changed';
         unlike $result->{stdout}, qr/can add/, 'and can not be updated';
     };
 
     subtest 'add bugfix update' => sub {
-        my $result = run_cmd( 'Git::ReleaseRepo' => [ 'add', '--bugfix', '--repo_dir', $rel_repo->work_tree, 'foo' ] );
+        my $result = run_cmd( 'Git::ReleaseRepo' => [ 'add', '--bugfix', '--repo_dir', $rel_repo->work_tree, 'foo', '--prefix', 'v' ] );
+    };
+
+    subtest 'repo branch "v0.1" status is correct' => sub {
+        my $cmd;
+        my %refs = repo_refs $rel_repo;
+        isnt $refs{'refs/heads/v0.1'}, $refs{'refs/tags/v0.1.0'}, "we've moved past v0.1.0";
+        $cmd = $rel_repo->command( checkout => 'v0.1' );
+        $cmd->close;
+        $cmd = $rel_repo->command( submodule => 'update', '--init' );
+        $cmd->close;
+        my @changes = last_commit $rel_repo;
+        is scalar @changes, 1, 'only one change was made';
+        is $changes[0]{path_src}, 'foo', 'only change is to the foo module';
+        is $changes[0]{status}, 'M', 'foo was modified';
+    };
+
+    subtest 'repo branch "master" status is correct' => sub {
+        my $cmd;
+        $cmd = $rel_repo->command( checkout => 'master' );
+        $cmd->close;
+        my %refs = repo_refs $rel_repo;
+        is $refs{'refs/heads/master'}, $refs{'refs/tags/v0.1.0'}, "we have not moved past v0.1.0";
     };
 
     subtest 'bugfix status is changed, not out-of-date' => sub {
         my $result = run_cmd( 'Git::ReleaseRepo' => [ 'status', '--bugfix', '--repo_dir', $rel_repo->work_tree, '--prefix', 'v' ] );
-        like $result->{stdout}, qr/foo changed/, 'foo has been updated';
+        like $result->{stdout}, qr/foo changed/, 'foo "v0.1" has been updated';
         unlike $result->{stdout}, qr/can add/, 'and can not be updated';
     };
 
-    subtest 'release status is still clean' => sub {
+    subtest 'release status is still out-of-date' => sub {
         my $result = run_cmd( 'Git::ReleaseRepo' => [ 'status', '--repo_dir', $rel_repo->work_tree, '--prefix', 'v' ] );
-        unlike $result->{stdout}, qr/foo changed/, 'foo has not been changed';
+        unlike $result->{stdout}, qr/foo changed/, 'foo "master" has not been changed';
         unlike $result->{stdout}, qr/can add/, 'and can not be updated';
     };
 };
+
+done_testing;
+__END__
 
 subtest 'update non-bugfix' => sub {
     subtest 'add new module' => sub {
