@@ -6,6 +6,7 @@ use Moose;
 use App::Cmd::Setup -command;
 use YAML::Tiny;
 use File::HomeDir;
+use File::Path qw( remove_tree );
 use File::Spec::Functions qw( catfile catdir );
 use Git::Repository;
 
@@ -113,20 +114,33 @@ sub outdated {
 
 sub checkout {
     my ( $self, $commit ) = @_;
+    # git will not remove submodule directories, in case they have stuff in them
+    # So let's compare the list and see what we need to remove
+    my %current_submodule = $self->submodule;
     $commit //= "master";
     my $cmd = $self->git->command( checkout => $commit );
-    $cmd->close;
-    if ( $cmd->exit != 0 ) {
-        die "Could not checkout '$commit'.\nEXIT: " . $cmd->exit . "\nSTDERR: " . readline $cmd->stderr;
-    }
-    $cmd = $self->git->command( submodule => update => '--init' );
     my @stderr = readline $cmd->stderr;
     my @stdout = readline $cmd->stdout;
+    $cmd->close;
+    if ( $cmd->exit != 0 ) {
+        die "Could not checkout '$commit'.\nEXIT: " . $cmd->exit . "\nSTDERR: " . ( join "\n", @stderr )
+            . "\nSTDOUT: " . ( join "\n", @stdout );
+    }
+    $cmd = $self->git->command( submodule => update => '--init' );
+    @stderr = readline $cmd->stderr;
+    @stdout = readline $cmd->stdout;
     $cmd->close;
     if ( $cmd->exit != 0 ) {
         die "Could not update submodules to '$commit'.\nEXIT: " . $cmd->exit . "\nSTDERR: " . ( join "\n", @stderr )
             . "\nSTDOUT: " . ( join "\n", @stdout );
     }
+
+    # Remove any submodule directories that no longer belong
+    my @missing = grep { exists $current_submodule{ $_ } }
+                map { s{^[?]*\s+|/$}{}g; $_ }
+                grep { /^[?]{2}/ }
+                $self->git->run( status => '--porcelain' );
+    remove_tree( catdir( $self->git->work_tree, $_ ) ) for @missing;
 }
 
 sub list_version_refs {
@@ -162,8 +176,12 @@ sub latest_release_branch {
 sub version_sort {
     # Assume Semantic Versioning style, plus prefix
     # %s.%i.%i%s
-    my @a = $a =~ /^\D*(\d+)[.](\d+)[.](\d+)/;
-    my @b = $b =~ /^\D*(\d+)[.](\d+)[.](\d+)/;
+    my @a = $a =~ /^\D*(\d+)[.](\d+)(?:[.](\d+))?/;
+    my @b = $b =~ /^\D*(\d+)[.](\d+)(?:[.](\d+))?/;
+
+    # Assume the 3rd number is 0 if not given
+    $a[2] //= 0;
+    $b[2] //= 0;
 
     my $format = ( "%03i" x @a );
     return sprintf( $format, @a ) cmp sprintf( $format, @b );

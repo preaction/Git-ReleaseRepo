@@ -220,12 +220,9 @@ subtest 'add bugfix' => sub {
     };
 };
 
-done_testing;
-__END__
-
 subtest 'update non-bugfix' => sub {
     subtest 'add new module' => sub {
-        my $result = run_cmd( 'Git::ReleaseRepo' => [ 'add', '--repo_dir', $rel_repo->work_tree, 'bar', $bar_repo->work_tree ] );
+        my $result = run_cmd( 'Git::ReleaseRepo' => [ 'add', '--repo_dir', $rel_repo->work_tree, 'bar', $bar_repo->work_tree, '--prefix', 'v' ] );
     };
     subtest 'release status is changed, not out-of-date' => sub {
         my $result = run_cmd( 'Git::ReleaseRepo' => [ 'status', '--repo_dir', $rel_repo->work_tree, '--prefix', 'v' ] );

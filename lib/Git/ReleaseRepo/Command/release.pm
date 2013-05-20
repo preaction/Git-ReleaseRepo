@@ -33,6 +33,7 @@ augment execute => sub {
         else {
             # Normal releases increment the second number
             $parts[1]++;
+            $parts[2] = 0;
         }
         # Remove anything after the 3rd number. If they wanted more, they
         # should have given us an argument!
@@ -41,7 +42,12 @@ augment execute => sub {
     }
     print "Release version $version\n";
     print "Starting release cycle $branch_version\n" if !$opt->{bugfix};
-    $self->checkout;
+    if ( $opt->bugfix ) {
+        $self->checkout( $self->latest_release_branch );
+    }
+    else {
+        $self->checkout;
+    }
     # Release all modules too!
     for my $module ( keys $self->submodule ) {
         my $subgit = $self->submodule_git( $module );
