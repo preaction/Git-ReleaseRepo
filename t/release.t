@@ -23,7 +23,7 @@ $bar_repo->run( add => $bar_readme );
 $bar_repo->run( commit => -m => 'Added readme' );
 
 use Git::ReleaseRepo;
-use App::Cmd::Tester qw( test_app );
+use App::Cmd::Tester::CaptureExternal qw( test_app );
 
 sub run_cmd {
     my $result = test_app( @_ );
