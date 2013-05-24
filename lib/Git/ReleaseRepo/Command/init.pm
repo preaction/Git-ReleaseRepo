@@ -24,7 +24,7 @@ augment execute => sub {
     }
     make_path( $conf_dir );
     write_file( catfile( $conf_dir, 'config' ), '' );
-    if ( $opt->{root} && !$ENV{GIT_RELEASE_ROOT} || $ENV{GIT_RELEASE_ROOT} ne $dir ) {
+    if ( $opt->{root} && ( !$ENV{GIT_RELEASE_ROOT} || $ENV{GIT_RELEASE_ROOT} ne $dir ) ) {
         print "Add 'GIT_RELEASE_ROOT=$dir' to your environment, or add '--root $dir' to your commands.\n";
     }
 };
