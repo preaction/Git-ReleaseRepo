@@ -1,14 +1,19 @@
 package Git::ReleaseRepo::Command::init;
+# ABSTRACT: Initialize Git::ReleaseRepo
 
 use strict;
 use warnings;
 use Moose;
-extends 'Git::ReleaseRepo::Command';
+use Git::ReleaseRepo -command;
 use Cwd qw( abs_path );
 use File::Spec::Functions qw( catdir catfile );
 use File::HomeDir;
 use File::Path qw( make_path );
 use File::Slurp qw( write_file );
+
+sub description {
+    return 'Initialize Git::ReleaseRepo';
+}
 
 augment execute => sub {
     my ( $self, $opt, $args ) = @_;

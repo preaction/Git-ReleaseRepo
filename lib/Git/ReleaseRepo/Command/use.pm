@@ -1,14 +1,24 @@
 package Git::ReleaseRepo::Command::use;
+# ABSTRACT: Set a release repository as the default
 
 use strict;
 use warnings;
 use Moose;
-extends 'Git::ReleaseRepo::Command';
+use Git::ReleaseRepo -command;
 use Cwd qw( abs_path );
 use File::Spec::Functions qw( catdir catfile );
 use File::HomeDir;
 use File::Path qw( make_path );
 use File::Slurp qw( write_file );
+
+override usage_desc => sub {
+    my ( $self ) = @_;
+    return super() . " <repo_name>";
+};
+
+sub description {
+    return 'Set a release repository as the default';
+}
 
 sub validate_args {
     my ( $self, $opt, $args ) = @_;

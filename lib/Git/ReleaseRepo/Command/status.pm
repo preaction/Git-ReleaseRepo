@@ -1,10 +1,15 @@
 package Git::ReleaseRepo::Command::status;
+# ABSTRACT: Show the status of a release repository
 
 use strict;
 use warnings;
 use List::MoreUtils qw( uniq );
 use Moose;
-extends 'Git::ReleaseRepo::Command';
+use Git::ReleaseRepo -command;
+
+sub description {
+    return 'Show the status of a release repository';
+}
 
 around opt_spec => sub {
     my ( $orig, $self ) = @_;

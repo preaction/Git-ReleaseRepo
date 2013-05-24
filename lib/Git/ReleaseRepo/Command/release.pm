@@ -1,10 +1,15 @@
 package Git::ReleaseRepo::Command::release;
+# ABSTRACT: Perform a release
 
 use strict;
 use warnings;
 use Moose;
-extends 'Git::ReleaseRepo::Command';
+use Git::ReleaseRepo -command;
 use Git::Repository;
+
+sub description {
+    return 'Perform a release';
+}
 
 around opt_spec => sub {
     my ( $orig, $self ) = @_;

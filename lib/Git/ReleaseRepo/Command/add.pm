@@ -1,11 +1,21 @@
 package Git::ReleaseRepo::Command::add;
+# ABSTRACT: Add a module to the next release
 
 use strict;
 use warnings;
 use Moose;
-extends 'Git::ReleaseRepo::Command';
+use Git::ReleaseRepo -command;
 use File::Spec::Functions qw( catdir );
 use Git::Repository;
+
+override usage_desc => sub {
+    my ( $self ) = @_;
+    return super() . " <module_name> [<module_url>]";
+};
+
+sub description {
+    return 'Add a module to the next release';
+}
 
 around opt_spec => sub {
     my ( $orig, $self ) = @_;
@@ -99,4 +109,13 @@ no Moose;
 __PACKAGE__->meta->make_immutable;
 1;
 __END__
+
+=head1 NAME
+
+Git::ReleaseRepo::Command::add - Add a module to the next release
+
+=head1 DESCRIPTION
+
+Add a module to the next release.
+
 
