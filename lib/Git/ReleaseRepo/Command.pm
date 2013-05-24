@@ -4,7 +4,8 @@ use strict;
 use warnings;
 use Moose;
 use App::Cmd::Setup -command;
-use YAML::Tiny;
+use YAML qw( LoadFile DumpFile );
+use List::Util qw( first );
 use File::HomeDir;
 use File::Path qw( remove_tree );
 use File::Spec::Functions qw( catfile catdir );
@@ -13,43 +14,48 @@ use Git::Repository;
 has config_file => (
     is      => 'ro',
     isa     => 'Str',
+    lazy    => 1,
     default => sub {
-        catfile( File::HomeDir->my_home, '.releaserepo' );
+        catfile( $_[0]->repo_root, '.release', 'config' );
     },
 );
 
 has config => (
     is      => 'ro',
-    isa     => 'YAML::Tiny',
+    isa     => 'HashRef',
     lazy    => 1,
     default => sub {
         my ( $self ) = @_;
         if ( -f $self->config_file ) {
-            return YAML::Tiny->read( $self->config_file );
+            return LoadFile( $self->config_file ) || {};
         }
         else {
-            return YAML::Tiny->new;
+            return {};
         }
     },
 );
 
 sub write_config {
     my ( $self ) = @_;
-    return $self->config->write( $self->config_file );
+    return DumpFile( $self->config_file, $self->config );
 }
 
 has repo_name => (
     is      => 'rw',
     isa     => 'Str',
     lazy    => 1,
-    default => sub { (keys %{$_[0]->config})[0] },
+    default => sub {
+        my ( $self ) = @_;
+        my $config = $self->config;
+        return first { $config->{$_}{default} } keys %$config;
+    },
 );
 
 has repo_dir => (
     is      => 'rw',
     isa     => 'Str',
     lazy    => 1,
-    default => sub { $_[0]->config->{$_[0]->repo_name}{work_tree} },
+    default => sub { catdir( $_[0]->repo_root, $_[0]->repo_name ) },
 );
 
 has git => (
@@ -70,10 +76,16 @@ has release_prefix => (
     isa     => 'Str',
     lazy    => 1,
     default => sub {
-        my ( $self ) = @_;
-        my $repo = $self->config->[0];
-        my $repo_name = [keys %$repo]->[0];
-        return $repo->{$repo_name}{release_prefix};
+        return $_[0]->config->{$_[0]->repo_name}{version_prefix};
+    },
+);
+
+has repo_root => (
+    is      => 'rw',
+    isa     => 'Str',
+    lazy    => 1,
+    default => sub {
+        return $ENV{GIT_RELEASE_ROOT} || catdir( File::HomeDir->my_home, 'release' );
     },
 );
 
@@ -223,14 +235,18 @@ sub has_branch {
 
 sub opt_spec {
     return (
-        [ 'repo_dir:s' => 'The path to the release repository' ],
-        [ 'prefix:s' => 'The release version prefix, like "v" or "ops-"' ],
+        [ 'repo_dir=s' => 'The path to the release repository' ],
+        [ 'prefix=s' => 'The release version prefix, like "v" or "ops-"' ],
+        [ 'root=s' => 'The root directory for release repositories' ],
     );
 }
 
 sub execute {
     my ( $self, $opt, $args ) = @_;
 
+    if ( exists $opt->{root} ) {
+        $self->repo_root( $opt->{root} );
+    }
     if ( exists $opt->{repo_dir} ) {
         $self->repo_dir( $opt->{repo_dir} );
     }

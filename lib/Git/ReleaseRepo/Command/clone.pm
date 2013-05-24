@@ -23,7 +23,7 @@ augment execute => sub {
     my $output = Git::Repository->run( clone => @$args );
     my ( $directory ) = $output =~ m/Cloning into '([^']+)'/;
     my $name = basename( $directory );
-    $self->config->[0]{ $name } = {
+    $self->config->{ $name } = {
         work_tree => $directory,
     };
 };

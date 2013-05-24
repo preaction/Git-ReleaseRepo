@@ -8,6 +8,8 @@ my $build = Module::Build->new(
         'App::Cmd'        => 0.318,
         'File::HomeDir'   => 1.00,
         'YAML::Tiny'      => 1.51,
+        'File::HomeDir'   => 0,
+        'File::Path'      => 0,
     },
     test_requires => {
         'Test::Most'      => 0,

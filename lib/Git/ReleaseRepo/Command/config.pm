@@ -10,7 +10,7 @@ augment execute => sub {
     my ( $self, $opt, $args ) = @_;
     my $cmd = shift @$args;
     if ( $cmd eq 'add' ) {
-        $self->config->[0]{ $args->[0] }{ work_tree } = abs_path( $args->[1] );
+        $self->config->{ $args->[0] }{ work_tree } = abs_path( $args->[1] );
     }
 };
 
