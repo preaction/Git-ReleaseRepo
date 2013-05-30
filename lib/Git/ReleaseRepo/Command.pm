@@ -238,12 +238,16 @@ sub opt_spec {
         [ 'repo_dir=s' => 'The path to the release repository' ],
         [ 'prefix=s' => 'The release version prefix, like "v" or "ops-"' ],
         [ 'root=s' => 'The root directory for release repositories' ],
+        [ 'repo=s' => 'The name of the repo to use. Defaults to the repo selected by "use"' ],
     );
 }
 
 sub execute {
     my ( $self, $opt, $args ) = @_;
 
+    if ( exists $opt->{repo} ) {
+        $self->repo_name( $opt->{repo} );
+    }
     if ( exists $opt->{root} ) {
         $self->repo_root( $opt->{root} );
     }
