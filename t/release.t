@@ -22,6 +22,9 @@ write_file( $bar_readme, 'Bar version 0.0' );
 $bar_repo->run( add => $bar_readme );
 $bar_repo->run( commit => -m => 'Added readme' );
 
+my $rel_root = File::Temp->newdir;
+my $rel_repo;
+
 use Git::ReleaseRepo;
 use App::Cmd::Tester::CaptureExternal qw( test_app );
 
@@ -81,6 +84,24 @@ sub repo_refs($) {
     return map { $_->[1], $_->[0] } map { [split] } readline $cmd->stdout;
 }
 
+sub current_branch($) {
+    my ( $git ) = @_;
+    my $cmd = $git->command( 'branch' );
+    # [* ] <branch>
+    return map { chomp; $_ } map { s/^[*\s]\s//; $_ } grep { /^[*]/ } readline $cmd->stdout;
+}
+
+sub is_current_tag($$) {
+    my ( $git, $tag ) = @_;
+    my $cmd = $git->command( 'describe' );
+    # <tag>
+    # OR
+    # <tag>-<commits since tag>-<shorthash>
+    my $line = readline $cmd->stdout;
+    chomp $line;
+    is $line, $tag, "commit is tagged '$tag'";
+}
+
 sub test_repo_has_refs($%) {
     my ( $repo, %refs ) = @_;
     return sub {
@@ -135,8 +156,37 @@ sub test_bugfix_status(%) {
     return test_status $result->{stdout}, @_;
 }
 
-my $rel_root = File::Temp->newdir;
-my $rel_repo;
+sub test_deploy($%) {
+    my ( $dir, %test ) = @_;
+    return sub {
+        subtest 'deployed repository is correct' => sub {
+            my $deploy_dir = catdir( $rel_root, $dir );
+            ok -d $deploy_dir, "Deploy directory '$dir' exists";
+            my $deploy_repo = Git::Repository->new( work_tree => $deploy_dir );
+            is_repo_clean $deploy_repo;
+            is current_branch $deploy_repo, $test{branch};
+            is_current_tag $deploy_repo, $test{tag};
+        };
+        subtest 'submodules are initialized' => sub {
+            my $sub_dir = catdir( $rel_root, $dir, 'foo' );
+            ok -f catfile( $sub_dir, 'README' );
+            my $sub_repo = Git::Repository->new( work_tree => $sub_dir );
+            is_repo_clean $sub_repo;
+            is current_branch $sub_repo, $test{branch};
+            is_current_tag $sub_repo, $test{tag};
+        };
+        subtest 'deployed configuration is correct' => sub {
+            my $conf = LoadFile( catfile( $rel_root, '.release', 'config' ) );
+            cmp_deeply
+                $conf->{$dir},
+                {
+                    track => $test{branch},
+                },
+                'deploy config is complete and correct';
+        };
+    }
+}
+
 subtest 'initial creation' => sub {
     subtest 'init' => sub {
         my $result = run_cmd( 'Git::ReleaseRepo' => [ 'init', '--root', "$rel_root" ] );
@@ -308,6 +358,135 @@ subtest 'second release' => sub {
 
     subtest 'module status is unchanged'
         => test_release_status foo => undef, bar => undef;
+};
+
+subtest 'deploy latest release' => sub {
+    my $result = run_cmd( 'Git::ReleaseRepo' => [ 'deploy' ] );
+    subtest 'deploy test-release-v0.2'
+        => test_deploy 'test-release-v0.2',
+            branch  => 'v0.2',
+            tag     => 'v0.2.0';
+};
+
+subtest 'deploy first release' => sub {
+    my $result = run_cmd( 'Git::ReleaseRepo' => [ 'deploy', '--repo', 'test-release', 'v0.1' ] );
+    subtest 'deploy test-release-v0.1'
+        => test_deploy 'test-release-v0.1',
+            branch  => 'v0.1',
+            tag     => 'v0.1.1';
+};
+
+sub test_deploy_status($$$) {
+    my ( $repo, $from, $to ) = @_;
+    return sub {
+        my $result = run_cmd( 'Git::ReleaseRepo' => [ 'status', '--repo', $repo ] );
+        like $result->{stdout}, qr/^On release $from/, "Currently on $from";
+        if ( $to ) {
+            like $result->{stdout}, qr/\(can update to $to\)/, "Can be updated to $to";
+        }
+        else {
+            unlike $result->{stdout}, qr/^On release $from \(can update/, 'Can not be updated';
+        }
+    }
+}
+
+subtest 'bugfix release: v0.2.1' => sub {
+    # Foo has a bugfix
+    my $cmd = $foo_repo->command( checkout => 'v0.2' );
+    $cmd->close;
+    if ( $cmd->exit != 0 ) {
+        fail "Could not checkout Foo 'v0.2'.\nSTDERR: " . $cmd->stderr;
+    }
+    write_file( $foo_readme, 'Foo version 2.1' );
+    $foo_repo->run( add => $foo_readme );
+    $foo_repo->run( commit => -m => 'Added bugfix' );
+    $foo_repo->command( checkout => 'master' );
+
+    subtest 'add bugfix update' => sub {
+        my $result = run_cmd( 'Git::ReleaseRepo' => [ 'add', '--bugfix', 'foo' ] );
+    };
+
+    subtest 'bugfix status is changed, not out-of-date'
+        => test_bugfix_status foo => 'changed';
+
+    subtest 'release status is unchanged'
+        => test_release_status foo => undef, bar => undef;
+
+    subtest 'v0.1 deploy status is unchanged'
+        => test_deploy_status 'test-release-v0.1', 'v0.1.1' => undef;
+    subtest 'v0.2 deploy status is unchanged'
+        => test_deploy_status 'test-release-v0.2', 'v0.2.0' => undef;
+
+    subtest 'release v0.2.1' => sub {
+        my $result = run_cmd( 'Git::ReleaseRepo' => [ 'release', '--bugfix' ] );
+    };
+
+    subtest 'release repository is correct'
+        => test_repo_has_refs $rel_repo,
+            branch  => [qw( v0.1 v0.2 )],
+            tag     => [qw( v0.1.0 v0.1.1 v0.2.0 v0.2.1 )];
+
+    subtest 'foo module repository is correct'
+        => test_repo_has_refs $foo_repo,
+            branch  => [qw( v0.1 v0.2 )],
+            tag     => [qw( v0.1.0 v0.1.1 v0.2.0 v0.2.1 )];
+
+    subtest 'bugfix status is unchanged, not out-of-date'
+        => test_bugfix_status foo => undef;
+
+    subtest 'release status is unchanged'
+        => test_release_status foo => undef, bar => undef;
+
+    subtest 'v0.1 deploy status is unchanged, not out-of-date'
+        => test_deploy_status 'test-release-v0.1', 'v0.1.1' => undef;
+    subtest 'v0.2 deploy status is unchanged, out-of-date'
+        => test_deploy_status 'test-release-v0.2', 'v0.2.0' => 'v0.2.1';
+};
+
+subtest 'update deployment to v0.2.1' => sub {
+    my $result = run_cmd( 'Git::ReleaseRepo' => [ 'update', '--repo', 'test-release-v0.2' ] );
+    subtest 'bugfix status is unchanged, not out-of-date'
+        => test_bugfix_status foo => undef;
+    subtest 'release status is unchanged'
+        => test_release_status foo => undef, bar => undef;
+    subtest 'v0.1 deploy status is unchanged, not out-of-date'
+        => test_deploy_status 'test-release-v0.1', 'v0.1.1' => undef;
+    subtest 'v0.2 deploy status is changed, not out-of-date'
+        => test_deploy_status 'test-release-v0.2', 'v0.2.1' => undef;
+};
+
+subtest 'deploy master for everything' => sub {
+    # Add a dev change to foo
+    my $cmd = $foo_repo->command( checkout => 'master' );
+    $cmd->close;
+    if ( $cmd->exit != 0 ) {
+        fail "Could not checkout Foo 'master'.\nSTDERR: " . $cmd->stderr;
+    }
+    write_file( $foo_readme, 'Foo version master' );
+    $foo_repo->run( add => $foo_readme );
+    $foo_repo->run( commit => -m => 'Added bugfix' );
+
+    # Master deploy shows everything!
+    my $result = run_cmd( 'Git::ReleaseRepo' => [ 'deploy', '--master' ] );
+    my $sub_foo_readme = catfile( $rel_root, 'test-release-master', 'foo', 'README' );
+    is read_file( $sub_foo_readme ), 'Foo version master', 'foo updated to master';
+};
+
+subtest 'update master for everything' => sub {
+    # Add a dev change to bar
+    my $cmd = $bar_repo->command( checkout => 'master' );
+    $cmd->close;
+    if ( $cmd->exit != 0 ) {
+        fail "Could not checkout Bar 'master'.\nSTDERR: " . $cmd->stderr;
+    }
+    write_file( $bar_readme, 'Bar version master' );
+    $bar_repo->run( add => $bar_readme );
+    $bar_repo->run( commit => -m => 'Added bugfix' );
+
+    # Master update shows everything!
+    my $result = run_cmd( 'Git::ReleaseRepo' => [ 'update', '--repo', 'test-release-master', '--master' ] );
+    my $sub_bar_readme = catfile( $rel_root, 'test-release-master', 'bar', 'README' );
+    is read_file( $sub_bar_readme ), 'Bar version master', 'bar updated to master';
 };
 
 done_testing;
