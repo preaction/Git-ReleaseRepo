@@ -13,12 +13,12 @@ my $foo_repo = test_repository;
 my $bar_repo = test_repository;
 
 my $foo_readme = catfile( $foo_repo->work_tree, 'README' );
-write_file( $foo_readme, 'Foo version 1.0' );
+write_file( $foo_readme, 'Foo version 0.0' );
 $foo_repo->run( add => $foo_readme );
 $foo_repo->run( commit => -m => 'Added readme' );
 
 my $bar_readme = catfile( $bar_repo->work_tree, 'README' );
-write_file( $bar_readme, 'Bar version 1.0' );
+write_file( $bar_readme, 'Bar version 0.0' );
 $bar_repo->run( add => $bar_readme );
 $bar_repo->run( commit => -m => 'Added readme' );
 
@@ -81,6 +81,60 @@ sub repo_refs($) {
     return map { $_->[1], $_->[0] } map { [split] } readline $cmd->stdout;
 }
 
+sub test_repo_has_refs($%) {
+    my ( $repo, %refs ) = @_;
+    return sub {
+        is_repo_clean $repo;
+        # Has release branch and release tag
+        if ( $refs{branch} ) {
+            my @required = ref $refs{branch} eq 'ARRAY' ? @{$refs{branch}} : $refs{branch};
+            my @branches = grep { $_ ne 'master' } repo_branches $repo;
+            cmp_deeply \@branches, bag( @required ), 'branches are correct';
+        }
+        if ( $refs{tag} ) {
+            my @required = ref $refs{tag} eq 'ARRAY' ? @{$refs{tag}} : $refs{tag};
+            my @tags = repo_tags $repo;
+            cmp_deeply \@tags, bag(@required), 'tags are correct';
+        }
+    };
+}
+
+sub test_status($%) {
+    my ( $stdout, %modules ) = @_;
+    return sub {
+        for my $mod ( keys %modules ) {
+            if ( not defined $modules{$mod} ) {
+                unlike $stdout, qr/^$mod/m, "module '$mod' unchanged and cannot add";
+                next;
+            }
+            my %test = map { $_ => 1 }
+                       ref $modules{$mod} eq 'ARRAY' ? @{$modules{$mod}} : $modules{$mod};
+            if ( $test{changed} ) {
+                like $stdout, qr/^$mod\s+changed/m, "module '$mod' changed";
+            }
+            else { # unchanged
+                unlike $stdout, qr/^$mod\s+changed/m, "module '$mod' unchanged";
+            }
+            if ( $test{outdated} ) {
+                like $stdout, qr/^$mod.*can add/m, "module '$mod' outdated";
+            }
+            else { # not outdated
+                unlike $stdout, qr/^$mod.*can add/m, "module '$mod' outdated";
+            }
+        }
+    };
+}
+
+sub test_release_status(%) {
+    my $result = run_cmd( 'Git::ReleaseRepo' => [ 'status' ] );
+    return test_status $result->{stdout}, @_;
+}
+
+sub test_bugfix_status(%) {
+    my $result = run_cmd( 'Git::ReleaseRepo' => [ 'status', '--bugfix' ] );
+    return test_status $result->{stdout}, @_;
+}
+
 my $rel_root = File::Temp->newdir;
 my $rel_repo;
 subtest 'initial creation' => sub {
@@ -124,61 +178,35 @@ subtest 'add new module' => sub {
         like $gitmodules, qr{\[submodule\s+"foo"\]\s+path\s*=\s*foo}s, 'module has right name and path';
     };
 
-    subtest 'module status is changed' => sub {
-        my $result = run_cmd( 'Git::ReleaseRepo' => [ 'status' ] );
-        like $result->{stdout}, qr/foo changed/, 'foo has been changed';
-        unlike $result->{stdout}, qr/can add/, 'but cannot be updated';
-    };
+    subtest 'module status is changed'
+        => test_release_status foo => 'changed';
 };
 
 subtest 'update module' => sub {
-    write_file( $foo_readme, 'Foo version 2.0' );
+    write_file( $foo_readme, 'Foo version 1.0' );
     $foo_repo->run( add => $foo_readme );
     $foo_repo->run( commit => -m => 'Added readme' );
 
-    subtest 'module status is out-of-date' => sub {
-        my $result = run_cmd( 'Git::ReleaseRepo' => [ 'status' ] );
-        like $result->{stdout}, qr/foo changed/, 'foo has not been released yet';
-        like $result->{stdout}, qr/can add/, 'and can be updated';
-    };
+    subtest 'module status is out-of-date'
+        => test_release_status foo => [qw( changed outdated )];
 
     my $result = test_app( 'Git::ReleaseRepo' => [ 'add', 'foo' ] );
 
-    subtest 'module status is no longer out-of-date' => sub {
-        my $result = run_cmd( 'Git::ReleaseRepo' => [ 'status' ] );
-        like $result->{stdout}, qr/foo changed/, 'foo has not been released yet';
-        unlike $result->{stdout}, qr/can add/, 'and can be updated';
-    };
+    subtest 'module status is no longer out-of-date'
+        => test_release_status foo => 'changed';
 };
 
 subtest 'first release' => sub {
     my $result = run_cmd( 'Git::ReleaseRepo' => [ 'release' ] );
 
-    subtest 'release repository is correct' => sub {
-        is_repo_clean $rel_repo;
-        # Has release branch and release tag
-        my @branches = grep { $_ ne 'master' } repo_branches $rel_repo;
-        cmp_deeply \@branches, bag( 'v0.1' ), 'first minor release cycle, with prefix';
+    subtest 'release repository is correct'
+        => test_repo_has_refs $rel_repo, branch => 'v0.1', tag => 'v0.1.0';
 
-        my @tags = repo_tags $rel_repo;
-        cmp_deeply \@tags, bag( 'v0.1.0' ), 'first minor release, with prefix';
-    };
+    subtest 'module repository is correct'
+        => test_repo_has_refs $foo_repo, branch => 'v0.1', tag => 'v0.1.0';
 
-    subtest 'module repository is correct' => sub {
-        # Got the branch and tag pushed
-        is_repo_clean $foo_repo;
-        my @branches = grep { $_ ne 'master' } repo_branches $foo_repo;
-        cmp_deeply \@branches, bag( 'v0.1' ), 'first minor release cycle, with prefix';
-
-        my @tags = repo_tags $foo_repo;
-        cmp_deeply \@tags, bag( 'v0.1.0' ), 'first minor release, with prefix';
-    };
-
-    subtest 'module status is unchanged' => sub {
-        my $result = run_cmd( 'Git::ReleaseRepo' => [ 'status' ] );
-        unlike $result->{stdout}, qr/foo changed/, 'foo has been released';
-        unlike $result->{stdout}, qr/can add/, 'and can not be updated';
-    };
+    subtest 'module status is unchanged'
+        => test_release_status foo => undef;
 };
 
 subtest 'add bugfix' => sub {
@@ -188,22 +216,16 @@ subtest 'add bugfix' => sub {
     if ( $cmd->exit != 0 ) {
         fail "Could not checkout Foo 'v0.1'.\nSTDERR: " . $cmd->stderr;
     }
-    write_file( $foo_readme, 'Foo version 2.1' );
+    write_file( $foo_readme, 'Foo version 1.1' );
     $foo_repo->run( add => $foo_readme );
     $foo_repo->run( commit => -m => 'Added bugfix' );
     $foo_repo->command( checkout => 'master' );
 
-    subtest 'bugfix status is out-of-date' => sub {
-        my $result = run_cmd( 'Git::ReleaseRepo' => [ 'status', '--bugfix' ] );
-        unlike $result->{stdout}, qr/foo changed/, 'foo "v0.1" has not been released';
-        like $result->{stdout}, qr/can add/, 'but can be updated';
-    };
+    subtest 'bugfix status is out-of-date'
+        => test_bugfix_status foo => 'outdated';
 
-    subtest 'release status is also out-of-date' => sub {
-        my $result = run_cmd( 'Git::ReleaseRepo' => [ 'status' ] );
-        unlike $result->{stdout}, qr/foo changed/, 'foo "master" has not been changed';
-        unlike $result->{stdout}, qr/can add/, 'and can not be updated';
-    };
+    subtest 'release status is not out-of-date'
+        => test_release_status foo => undef;
 
     subtest 'add bugfix update' => sub {
         my $result = run_cmd( 'Git::ReleaseRepo' => [ 'add', '--bugfix', 'foo' ] );
@@ -231,112 +253,61 @@ subtest 'add bugfix' => sub {
         is $refs{'refs/heads/master'}, $refs{'refs/tags/v0.1.0'}, "we have not moved past v0.1.0";
     };
 
-    subtest 'bugfix status is changed, not out-of-date' => sub {
-        my $result = run_cmd( 'Git::ReleaseRepo' => [ 'status', '--bugfix' ] );
-        like $result->{stdout}, qr/foo changed/, 'foo "v0.1" has been updated';
-        unlike $result->{stdout}, qr/can add/, 'and can not be updated';
-    };
+    subtest 'bugfix status is changed, not out-of-date'
+        => test_bugfix_status foo => 'changed';
 
-    subtest 'release status is still out-of-date' => sub {
-        my $result = run_cmd( 'Git::ReleaseRepo' => [ 'status' ] );
-        unlike $result->{stdout}, qr/foo changed/, 'foo "master" has not been changed';
-        unlike $result->{stdout}, qr/can add/, 'and can not be updated';
-    };
+    subtest 'release status is still unchanged and up-to-date'
+        => test_release_status foo => undef;
 };
 
 subtest 'update non-bugfix' => sub {
     subtest 'add new module' => sub {
         my $result = run_cmd( 'Git::ReleaseRepo' => [ 'add', 'bar', $bar_repo->work_tree ] );
     };
-    subtest 'release status is changed, not out-of-date' => sub {
-        my $result = run_cmd( 'Git::ReleaseRepo' => [ 'status' ] );
-        like $result->{stdout}, qr/bar changed/, 'bar has been updated';
-        unlike $result->{stdout}, qr/can add/, 'and can not be updated further';
-    };
-    subtest 'bugfix status is same as it was' => sub {
-        my $result = run_cmd( 'Git::ReleaseRepo' => [ 'status', '--bugfix' ] );
-        unlike $result->{stdout}, qr/bar changed/, 'bar has not been changed';
-        like $result->{stdout}, qr/foo changed/, 'foo has been updated';
-        unlike $result->{stdout}, qr/can add/, 'and can not be updated';
-    };
+    subtest 'release status is changed, not out-of-date'
+        => test_release_status foo => undef, bar => 'changed';
+
+    subtest 'bugfix status is same as it was'
+        => test_bugfix_status foo => 'changed', bar => undef;
 };
 
 subtest 'bugfix release' => sub {
     # Only foo is released
     my $result = run_cmd( 'Git::ReleaseRepo' => [ 'release', '--bugfix' ] );
 
-    subtest 'release repository is correct' => sub {
-        is_repo_clean $rel_repo;
-        # Has release branch and release tag
-        my @branches = grep { $_ ne 'master' } repo_branches $rel_repo;
-        cmp_deeply \@branches, bag( 'v0.1' ), 'first minor release cycle, with prefix';
+    subtest 'release repository is correct'
+        => test_repo_has_refs $rel_repo, branch => 'v0.1', tag => [qw( v0.1.0 v0.1.1 )];
 
-        my @tags = repo_tags $rel_repo;
-        cmp_deeply \@tags, bag('v0.1.0','v0.1.1'), 'another tag for the bugfix release';
-    };
+    subtest 'module repository is correct' 
+        => test_repo_has_refs $foo_repo, branch => 'v0.1', tag => [qw( v0.1.0 v0.1.1 )];
 
-    subtest 'module repository is correct' => sub {
-        # Got the branch and tag pushed
-        is_repo_clean $foo_repo;
-        my @branches = grep { $_ ne 'master' } repo_branches $foo_repo;
-        cmp_deeply \@branches, bag( 'v0.1' ), 'first minor release cycle, with prefix';
+    subtest 'bugfix branch is clean'
+        => test_bugfix_status foo => undef, bar => undef;
 
-        my @tags = repo_tags $foo_repo;
-        cmp_deeply \@tags, bag('v0.1.0','v0.1.1'), 'another tag for the bugfix release';
-    };
-
-    subtest 'bugfix branch is clean' => sub {
-        my $result = run_cmd( 'Git::ReleaseRepo' => [ 'status', '--bugfix' ] );
-        unlike $result->{stdout}, qr/foo changed/, 'foo has been released';
-        unlike $result->{stdout}, qr/can add/, 'and can not be updated';
-    };
-
-    subtest 'release branch is same as it was' => sub {
-        my $result = run_cmd( 'Git::ReleaseRepo' => [ 'status' ] );
-        like $result->{stdout}, qr/bar changed/, 'bar has been updated';
-        unlike $result->{stdout}, qr/can add/, 'and can not be updated further';
-        unlike $result->{stdout}, qr/foo changed/, 'no changes made to foo';
-    };
+    subtest 'release branch is same as it was'
+        => test_release_status foo => undef, bar => 'changed';
 };
 
 subtest 'second release' => sub {
     my $result = run_cmd( 'Git::ReleaseRepo' => [ 'release' ] );
 
-    subtest 'release repository is correct' => sub {
-        is_repo_clean $rel_repo;
-        my @branches = grep { $_ ne 'master' } repo_branches $rel_repo;
-        cmp_deeply \@branches, bag( 'v0.1', 'v0.2' ), 'two releases now';
+    subtest 'release repository is correct'
+        => test_repo_has_refs $rel_repo,
+            branch  => [qw( v0.1 v0.2 )],
+            tag     => [qw( v0.1.0 v0.1.1 v0.2.0 )];
 
-        my @tags = repo_tags $rel_repo;
-        cmp_deeply \@tags, bag('v0.1.0','v0.1.1','v0.2.0'), 'another tag for the new minor release';
-    };
+    subtest 'foo module repository is correct'
+        => test_repo_has_refs $foo_repo,
+            branch  => [qw( v0.1 v0.2 )],
+            tag     => [qw( v0.1.0 v0.1.1 v0.2.0 )];
 
-    subtest 'foo module repository is correct' => sub {
-        is_repo_clean $foo_repo;
-        my @branches = grep { $_ ne 'master' } repo_branches $foo_repo;
-        cmp_deeply \@branches, bag( 'v0.1', 'v0.2' ), 'two releases now';
+    subtest 'bar module repository is correct'
+        => test_repo_has_refs $bar_repo,
+            branch  => [qw( v0.2 )],
+            tag     => [qw( v0.2.0 )];
 
-        my @tags = repo_tags $foo_repo;
-        cmp_deeply \@tags, bag('v0.1.0','v0.1.1','v0.2.0'), 'another tag for the new minor release';
-    };
-
-    subtest 'bar module repository is correct' => sub {
-        is_repo_clean $bar_repo;
-        my @branches = grep { $_ ne 'master' } repo_branches $bar_repo;
-        is scalar @branches, 1, 'one branch created';
-        cmp_deeply \@branches, bag( 'v0.2' ), 'only one release in the bar module';
-
-        my @tags = repo_tags $bar_repo;
-        is scalar @tags, 1, 'one tag created';
-        cmp_deeply \@tags, bag('v0.2.0'), 'only one tag for the bar module';
-    };
-
-    subtest 'module status is unchanged' => sub {
-        my $result = run_cmd( 'Git::ReleaseRepo' => [ 'status' ] );
-        unlike $result->{stdout}, qr/foo changed/, 'foo has been released';
-        unlike $result->{stdout}, qr/bar changed/, 'bar has been released';
-        unlike $result->{stdout}, qr/can add/, 'and can not be updated';
-    };
+    subtest 'module status is unchanged'
+        => test_release_status foo => undef, bar => undef;
 };
 
 done_testing;
