@@ -187,6 +187,20 @@ sub test_deploy($%) {
     }
 }
 
+sub test_deploy_status($$$) {
+    my ( $repo, $from, $to ) = @_;
+    return sub {
+        my $result = run_cmd( 'Git::ReleaseRepo' => [ 'status', '--repo', $repo ] );
+        like $result->{stdout}, qr/^On release $from/, "Currently on $from";
+        if ( $to ) {
+            like $result->{stdout}, qr/\(can update to $to\)/, "Can be updated to $to";
+        }
+        else {
+            unlike $result->{stdout}, qr/^On release $from \(can update/, 'Can not be updated';
+        }
+    }
+}
+
 subtest 'initial creation' => sub {
     subtest 'init' => sub {
         my $result = run_cmd( 'Git::ReleaseRepo' => [ 'init', '--root', "$rel_root" ] );
@@ -375,20 +389,6 @@ subtest 'deploy first release' => sub {
             branch  => 'v0.1',
             tag     => 'v0.1.1';
 };
-
-sub test_deploy_status($$$) {
-    my ( $repo, $from, $to ) = @_;
-    return sub {
-        my $result = run_cmd( 'Git::ReleaseRepo' => [ 'status', '--repo', $repo ] );
-        like $result->{stdout}, qr/^On release $from/, "Currently on $from";
-        if ( $to ) {
-            like $result->{stdout}, qr/\(can update to $to\)/, "Can be updated to $to";
-        }
-        else {
-            unlike $result->{stdout}, qr/^On release $from \(can update/, 'Can not be updated';
-        }
-    }
-}
 
 subtest 'bugfix release: v0.2.1' => sub {
     # Foo has a bugfix
