@@ -375,17 +375,17 @@ subtest 'second release' => sub {
 };
 
 subtest 'deploy latest release' => sub {
-    my $result = run_cmd( 'Git::ReleaseRepo' => [ 'deploy' ] );
+    my $result = run_cmd( 'Git::ReleaseRepo' => [ 'deploy', catdir( $rel_root, 'test-release' ) ] );
     subtest 'deploy test-release-v0.2'
         => test_deploy 'test-release-v0.2',
             branch  => 'v0.2',
             tag     => 'v0.2.0';
 };
 
-subtest 'deploy first release' => sub {
-    my $result = run_cmd( 'Git::ReleaseRepo' => [ 'deploy', '--repo', 'test-release', 'v0.1' ] );
-    subtest 'deploy test-release-v0.1'
-        => test_deploy 'test-release-v0.1',
+subtest 'deploy first release as stable' => sub {
+    my $result = run_cmd( 'Git::ReleaseRepo' => [ 'deploy', catdir( $rel_root, 'test-release' ), 'stable', '--version', 'v0.1' ] );
+    subtest 'deploy stable'
+        => test_deploy 'stable',
             branch  => 'v0.1',
             tag     => 'v0.1.1';
 };
@@ -412,8 +412,8 @@ subtest 'bugfix release: v0.2.1' => sub {
     subtest 'release status is unchanged'
         => test_release_status foo => undef, bar => undef;
 
-    subtest 'v0.1 deploy status is unchanged'
-        => test_deploy_status 'test-release-v0.1', 'v0.1.1' => undef;
+    subtest 'stable deploy status is unchanged'
+        => test_deploy_status 'stable', 'v0.1.1' => undef;
     subtest 'v0.2 deploy status is unchanged'
         => test_deploy_status 'test-release-v0.2', 'v0.2.0' => undef;
 
@@ -437,8 +437,8 @@ subtest 'bugfix release: v0.2.1' => sub {
     subtest 'release status is unchanged'
         => test_release_status foo => undef, bar => undef;
 
-    subtest 'v0.1 deploy status is unchanged, not out-of-date'
-        => test_deploy_status 'test-release-v0.1', 'v0.1.1' => undef;
+    subtest 'stable deploy status is unchanged, not out-of-date'
+        => test_deploy_status 'stable', 'v0.1.1' => undef;
     subtest 'v0.2 deploy status is unchanged, out-of-date'
         => test_deploy_status 'test-release-v0.2', 'v0.2.0' => 'v0.2.1';
 };
@@ -449,8 +449,8 @@ subtest 'update deployment to v0.2.1' => sub {
         => test_bugfix_status foo => undef;
     subtest 'release status is unchanged'
         => test_release_status foo => undef, bar => undef;
-    subtest 'v0.1 deploy status is unchanged, not out-of-date'
-        => test_deploy_status 'test-release-v0.1', 'v0.1.1' => undef;
+    subtest 'stable deploy status is unchanged, not out-of-date'
+        => test_deploy_status 'stable', 'v0.1.1' => undef;
     subtest 'v0.2 deploy status is changed, not out-of-date'
         => test_deploy_status 'test-release-v0.2', 'v0.2.1' => undef;
 };
@@ -467,7 +467,7 @@ subtest 'deploy master for everything' => sub {
     $foo_repo->run( commit => -m => 'Added bugfix' );
 
     # Master deploy shows everything!
-    my $result = run_cmd( 'Git::ReleaseRepo' => [ 'deploy', '--master' ] );
+    my $result = run_cmd( 'Git::ReleaseRepo' => [ 'deploy', '--master', catdir( $rel_root, 'test-release' ) ] );
     my $sub_foo_readme = catfile( $rel_root, 'test-release-master', 'foo', 'README' );
     is read_file( $sub_foo_readme ), 'Foo version master', 'foo updated to master';
 };
