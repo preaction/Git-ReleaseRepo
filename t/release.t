@@ -103,11 +103,15 @@ sub current_branch($) {
 
 sub is_current_tag($$) {
     my ( $git, $tag ) = @_;
-    my $cmd = $git->command( 'describe' );
+    my $cmd = $git->command( 'describe', '--tags', '--match', $tag );
     # <tag>
     # OR
     # <tag>-<commits since tag>-<shorthash>
     my $line = readline $cmd->stdout;
+    if ( $cmd->exit ) {
+        fail "$tag is not current tag: " . readline $cmd->stderr;
+    }
+    #print "describe: $line\n";
     chomp $line;
     is $line, $tag, "commit is tagged '$tag'";
 }
