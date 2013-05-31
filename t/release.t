@@ -22,7 +22,15 @@ write_file( $bar_readme, 'Bar version 0.0' );
 $bar_repo->run( add => $bar_readme );
 $bar_repo->run( commit => -m => 'Added readme' );
 
-my $rel_root = File::Temp->newdir;
+my $rel_root;
+if ( $ENV{NO_CLEANUP} ) {
+    $rel_root = File::Temp->newdir( CLEANUP => 0 );
+    print "# Release root: $rel_root\n";
+    END { print "# Release root: $rel_root\n" if $ENV{NO_CLEANUP} }
+}
+else {
+    $rel_root = File::Temp->newdir( CLEANUP => 1 );
+}
 my $rel_repo;
 
 use Git::ReleaseRepo;
