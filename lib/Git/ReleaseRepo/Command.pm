@@ -7,9 +7,8 @@ use App::Cmd::Setup -command;
 use YAML qw( LoadFile DumpFile );
 use List::Util qw( first );
 use File::HomeDir;
-use File::Path qw( remove_tree );
 use File::Spec::Functions qw( catfile catdir );
-use Git::Repository;
+use Git::Repository qw( +Git::ReleaseRepo::Repository );
 
 has config_file => (
     is      => 'ro',
@@ -64,10 +63,12 @@ has git => (
     lazy    => 1,
     default => sub {
         my $repo_dir = $_[0]->repo_dir;
-        return Git::Repository->new(
+        my $git = Git::Repository->new(
             work_tree => $_[0]->repo_dir,
             git_dir => catdir( $_[0]->repo_dir, '.git' ),
         );
+        $git->release_prefix( $_[0]->release_prefix );
+        return $git;
     },
 );
 
@@ -89,148 +90,11 @@ has repo_root => (
     },
 );
 
-sub submodule {
-    my ( $self ) = @_;
-    my %submodules;
-    for my $line ( $self->git->run( 'submodule' ) ) {
-        # <status><SHA1 hash> <submodule> (ref name)
-        $line =~ m{^.(\S+)\s(\S+)};
-        $submodules{ $2 } = $1;
-    }
-    return wantarray ? %submodules : \%submodules;
-}
-
-sub submodule_git {
-    my ( $self, $module ) = @_;
-    return Git::Repository->new(
-        work_tree => catdir( $self->git->work_tree, $module ),
-    );
-}
-
-sub outdated {
-    my ( $self, $ref ) = @_;
-    $ref ||= "refs/heads/master";
-    my $git = $self->git;
-    my %submod_refs = $self->submodule;
-    my @outdated;
-    for my $submod ( keys %submod_refs ) {
-        my $subgit = $self->submodule_git( $submod );
-        my %remote = $self->ls_remote( $subgit );
-        if ( !exists $remote{ $ref } || $submod_refs{ $submod } ne $remote{$ref} ) {
-            #print "OUTDATED $submod: $submod_refs{$submod} ne $remote{$ref}\n";
-            push @outdated, $submod;
-        }
-    }
-    return @outdated;
-}
-
-sub checkout {
-    my ( $self, $commit ) = @_;
-    # git will not remove submodule directories, in case they have stuff in them
-    # So let's compare the list and see what we need to remove
-    my %current_submodule = $self->submodule;
-    $commit //= "master";
-    my $cmd = $self->git->command( checkout => $commit );
-    my @stderr = readline $cmd->stderr;
-    my @stdout = readline $cmd->stdout;
-    $cmd->close;
-    if ( $cmd->exit != 0 ) {
-        die "Could not checkout '$commit'.\nEXIT: " . $cmd->exit . "\nSTDERR: " . ( join "\n", @stderr )
-            . "\nSTDOUT: " . ( join "\n", @stdout );
-    }
-    $cmd = $self->git->command( submodule => update => '--init' );
-    @stderr = readline $cmd->stderr;
-    @stdout = readline $cmd->stdout;
-    $cmd->close;
-    if ( $cmd->exit != 0 ) {
-        die "Could not update submodules to '$commit'.\nEXIT: " . $cmd->exit . "\nSTDERR: " . ( join "\n", @stderr )
-            . "\nSTDOUT: " . ( join "\n", @stdout );
-    }
-
-    # Remove any submodule directories that no longer belong
-    my @missing = grep { exists $current_submodule{ $_ } }
-                map { s{^[?]*\s+|/$}{}g; $_ }
-                grep { /^[?]{2}/ }
-                $self->git->run( status => '--porcelain' );
-    remove_tree( catdir( $self->git->work_tree, $_ ) ) for @missing;
-}
-
-sub list_version_refs {
-    my ( $self, $match, $rel_branch ) = @_;
-    my $prefix = $rel_branch // $self->release_prefix;
-    my %refs = $self->show_ref( $self->git );
-    my @versions = reverse sort version_sort grep { m{^$prefix} } map { (split "/", $_)[-1] } grep { m{^refs/$match/} } keys %refs;
-    return @versions;
-}
-
-sub list_versions {
-    my ( $self, $rel_branch ) = @_;
-    return $self->list_version_refs( 'tags', $rel_branch );
-}
-
-sub latest_version {
-    my ( $self, $rel_branch ) = @_;
-    my @versions = $self->list_versions( $rel_branch );
-    return $versions[0];
-}
-
-sub list_release_branches {
-    my ( $self ) = @_;
-    return $self->list_version_refs( 'heads' );
-}
-
-sub latest_release_branch {
-    my ( $self ) = @_;
-    my @branches = $self->list_release_branches;
-    return $branches[0];
-}
-
-sub version_sort {
-    # Assume Semantic Versioning style, plus prefix
-    # %s.%i.%i%s
-    my @a = $a =~ /^\D*(\d+)[.](\d+)(?:[.](\d+))?/;
-    my @b = $b =~ /^\D*(\d+)[.](\d+)(?:[.](\d+))?/;
-
-    # Assume the 3rd number is 0 if not given
-    $a[2] //= 0;
-    $b[2] //= 0;
-
-    my $format = ( "%03i" x @a );
-    return sprintf( $format, @a ) cmp sprintf( $format, @b );
-}
-
-sub show_ref {
-    my ( $self, $git ) = @_;
-    my %refs;
-    my $cmd = $git->command( 'show-ref' );
-    while ( defined( my $line = readline $cmd->stdout ) ) {
-        # <SHA1 hash> <symbolic ref>
-        my ( $ref_id, $ref_name ) = split /\s+/, $line;
-        $refs{ $ref_name } = $ref_id;
-    }
-    return wantarray ? %refs : \%refs;
-}
-
-sub ls_remote {
-    my ( $self, $git ) = @_;
-    my %refs;
-    my $cmd = $git->command( 'ls-remote', 'origin' );
-    while ( defined( my $line = readline $cmd->stdout ) ) {
-        # <SHA1 hash> <symbolic ref>
-        my ( $ref_id, $ref_name ) = split /\s+/, $line;
-        $refs{ $ref_name } = $ref_id;
-    }
-    return wantarray ? %refs : \%refs;
-}
-
-sub has_remote {
-    my ( $self, $git, $name ) = @_;
-    return grep { $_ eq $name } $git->run( 'remote' );
-}
-
-sub has_branch {
-    my ( $self, $git, $name ) = @_;
-    return grep { $_ eq $name } map { s/[*]?\s+//; $_ } $git->run( 'branch' );
+sub repo_name_from_url {
+    my ( $self, $repo_url ) = @_;
+    my ( $repo_name ) = $repo_url =~ m{/([^/]+)$};
+    $repo_name =~ s/[.]git$//;
+    return $repo_name;
 }
 
 sub opt_spec {

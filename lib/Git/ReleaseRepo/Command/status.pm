@@ -24,20 +24,21 @@ augment execute => sub {
     # "master" looks at master since latest release branch
     # "bugfix" looks at release branch since latest release
     my ( $since_version, %outdated, %diff );
+    my $git = $self->git;
     if ( $opt->bugfix ) {
-        my $rel_branch = $self->latest_release_branch;
-        $self->checkout( $rel_branch );
-        $since_version = $self->latest_version( $rel_branch );
-        %outdated = map { $_ => 1 } $self->outdated( 'refs/heads/' . $rel_branch );
-        %diff = map { $_ => 1 } $self->outdated( 'refs/tags/' . $since_version );
+        my $rel_branch = $git->latest_release_branch;
+        $git->checkout( $rel_branch );
+        $since_version = $git->latest_version( $rel_branch );
+        %outdated = map { $_ => 1 } $git->outdated( 'refs/heads/' . $rel_branch );
+        %diff = map { $_ => 1 } $git->outdated( 'refs/tags/' . $since_version );
     }
     else {
-        $self->checkout;
-        $since_version = $self->latest_release_branch;
-        %outdated = map { $_ => 1 } $self->outdated( 'refs/heads/master' );
-        %diff = $since_version ? map { $_ => 1 } $self->outdated( 'refs/tags/' . $since_version . '.0' ) 
+        $git->checkout;
+        $since_version = $git->latest_release_branch;
+        %outdated = map { $_ => 1 } $git->outdated( 'refs/heads/master' );
+        %diff = $since_version ? map { $_ => 1 } $git->outdated( 'refs/tags/' . $since_version . '.0' ) 
                 # If we haven't had a release yet, everything we have is different
-                 : map { $_ => 1 } keys %{$self->submodule};
+                 : map { $_ => 1 } keys %{$git->submodule};
     }
 
     my $header = "Changes since " . ( $since_version || "development started" );
@@ -55,7 +56,7 @@ augment execute => sub {
         }
         print "\n";
     }
-    $self->checkout;
+    $git->checkout;
 };
 
 1;

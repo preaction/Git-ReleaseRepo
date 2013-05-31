@@ -22,13 +22,14 @@ around opt_spec => sub {
 augment execute => sub {
     my ( $self, $opt, $args ) = @_;
     my ( $version, $branch_version );
+    my $git = $self->git;
     my $prefix = $self->release_prefix;
     if ( $args->[0] ) {
         $version = $args->[0];
         ( $branch_version ) = $args->[0] =~ m/^($prefix\d+[.]\d+)/;
     }
     else {
-        my $latest_version = $self->latest_version;
+        my $latest_version = $git->latest_version;
         my @parts = $latest_version ? split /[.]/, $latest_version
                   : ( "${prefix}0", 0, 0 ); # Our first release!
         if ( $opt->{bugfix} ) {
@@ -48,29 +49,29 @@ augment execute => sub {
     print "Release version $version\n";
     print "Starting release cycle $branch_version\n" if !$opt->{bugfix};
     if ( $opt->bugfix ) {
-        $self->checkout( $self->latest_release_branch );
+        $git->checkout( $git->latest_release_branch );
     }
     else {
-        $self->checkout;
+        $git->checkout;
     }
     # Release all modules too!
-    for my $module ( keys $self->submodule ) {
-        my $subgit = $self->submodule_git( $module );
+    for my $module ( keys $git->submodule ) {
+        my $subgit = $git->submodule_git( $module );
         if ( !$opt->{bugfix} ) {
             $self->branch_release( $subgit, $branch_version );
         }
         $self->tag_release( $subgit, $version );
     }
     if ( !$opt->{bugfix} ) {
-        $self->branch_release( $self->git, $branch_version );
+        $self->branch_release( $git, $branch_version );
     }
-    $self->tag_release( $self->git, $version );
+    $self->tag_release( $git, $version );
 };
 
 sub branch_release {
     my ( $self, $git, $version ) = @_;
     $git->run( branch => $version );
-    if ( $self->has_remote( $git, 'origin' ) ) {
+    if ( $git->has_remote( 'origin' ) ) {
         $git->command( push => origin => "$version:$version" );
     }
 }
@@ -78,7 +79,7 @@ sub branch_release {
 sub tag_release {
     my ( $self, $git, $version ) = @_;
     $git->run( tag => $version );
-    if ( $self->has_remote( $git, 'origin' ) ) {
+    if ( $git->has_remote( 'origin' ) ) {
         $git->command( push => origin => '--tags' );
     }
 }

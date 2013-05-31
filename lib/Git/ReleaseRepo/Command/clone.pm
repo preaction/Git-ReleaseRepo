@@ -12,13 +12,6 @@ use File::Path qw( make_path );
 use File::Slurp qw( write_file );
 use File::Basename qw( basename );
 
-sub repo_name_from_url {
-    my ( $self, $repo_url ) = @_;
-    my ( $repo_name ) = $repo_url =~ m{/([^/]+)$};
-    $repo_name =~ s/[.]git$//;
-    return $repo_name;
-}
-
 override usage_desc => sub {
     my ( $self ) = @_;
     return super() . " <repo_url> [<repo_name>]";

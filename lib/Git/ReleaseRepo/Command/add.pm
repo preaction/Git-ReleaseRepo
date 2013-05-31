@@ -6,7 +6,6 @@ use warnings;
 use Moose;
 use Git::ReleaseRepo -command;
 use File::Spec::Functions qw( catdir );
-use Git::Repository;
 
 override usage_desc => sub {
     my ( $self ) = @_;
@@ -45,46 +44,46 @@ sub validate_args {
 
 augment execute => sub {
     my ( $self, $opt, $args ) = @_;
+    my $git = $self->git;
     my $branch;
     if ( $opt->bugfix ) {
-        $branch = $self->latest_release_branch;
+        $branch = $git->latest_release_branch;
         die "Cannot add with --bugfix: No release branch found!\n" if !$branch;
     }
     else {
         $branch = "master";
     }
-    if ( $self->has_branch( $self->git, $branch ) ) {
-        $self->checkout( $branch );
+    if ( $git->has_branch( $branch ) ) {
+        $git->checkout( $branch );
     }
     if ( $opt->all ) {
-        my @outdated = $self->outdated;
+        my @outdated = $git->outdated;
         for my $outdated ( @outdated ) {
             $self->update_submodule( $outdated, $branch );
         }
         my $message = "Updating all outdated:\n"
                     . join "\n", map { sprintf "\t\%s", $_ } sort @outdated;
-        $self->git->run( commit => ( @outdated ), -m => $message );
+        $git->run( commit => ( @outdated ), -m => $message );
     }
     elsif ( @$args == 1 ) {
         $self->update_submodule( @$args, $branch );
-        $self->git->run( commit => ( @$args ), -m => "Updating $args->[0]" );
+        $git->run( commit => ( @$args ), -m => "Updating $args->[0]" );
     }
     elsif ( @$args == 2 ) {
         $self->add_submodule( @$args );
-        $self->git->run( commit => ( '.gitmodules', $args->[0] ), -m => "Adding $args->[0] to release" );
+        $git->run( commit => ( '.gitmodules', $args->[0] ), -m => "Adding $args->[0] to release" );
     }
-    $self->checkout;
+    $git->checkout;
 };
 
 sub update_submodule {
     my ( $self, $module, $branch ) = @_;
     $branch ||= "master";
-    if ( !$self->submodule->{ $module } ) {
+    my $git = $self->git;
+    if ( !$git->submodule->{ $module } ) {
         die "Cannot add $module: Submodule does not exist\n";
     }
-    my $subgit = Git::Repository->new(
-        work_tree => catdir( $self->git->work_tree, $module ),
-    );
+    my $subgit = $git->submodule_git( $module );
     my $cmd = $subgit->command( 'fetch' );
     $cmd->close;
     $cmd = $subgit->command( checkout => 'origin/' . $branch );
