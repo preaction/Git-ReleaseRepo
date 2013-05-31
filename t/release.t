@@ -178,7 +178,6 @@ sub test_deploy($%) {
             ok -d $deploy_dir, "Deploy directory '$dir' exists";
             my $deploy_repo = Git::Repository->new( work_tree => $deploy_dir );
             is_repo_clean $deploy_repo;
-            is current_branch $deploy_repo, $test{branch};
             is_current_tag $deploy_repo, $test{tag};
         };
         subtest 'submodules are initialized' => sub {
@@ -186,7 +185,6 @@ sub test_deploy($%) {
             ok -f catfile( $sub_dir, 'README' );
             my $sub_repo = Git::Repository->new( work_tree => $sub_dir );
             is_repo_clean $sub_repo;
-            is current_branch $sub_repo, $test{branch};
             is_current_tag $sub_repo, $test{tag};
         };
         subtest 'deployed configuration is correct' => sub {
