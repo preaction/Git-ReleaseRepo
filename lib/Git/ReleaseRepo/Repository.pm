@@ -90,7 +90,7 @@ sub checkout {
 sub list_version_refs {
     my ( $self, $match, $rel_branch ) = @_;
     my $prefix = $rel_branch // $self->release_prefix;
-    my %refs = $self->show_ref;
+    my %refs = $self->has_remote( 'origin') ? $self->ls_remote( 'origin' ) : $self->show_ref;
     my @versions = reverse sort version_sort grep { m{^$prefix} } map { (split "/", $_)[-1] } grep { m{^refs/$match/} } keys %refs;
     return @versions;
 }
