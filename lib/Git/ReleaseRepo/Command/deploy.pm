@@ -4,7 +4,7 @@ package Git::ReleaseRepo::Command::deploy;
 use strict;
 use warnings;
 use Moose;
-use Git::ReleaseRepo -command;
+extends 'Git::ReleaseRepo::CreateCommand';
 use File::Spec::Functions qw( catdir );
 use File::Copy qw( move );
 
@@ -78,11 +78,10 @@ augment execute => sub {
         $repo_name = join "-", $self->repo_name_from_url( $args->[0] ), $branch;
         move( $repo_dir, catdir( $self->repo_root, $repo_name ) );
     }
-    $self->config->{ $repo_name } = {
-        # Deploy creates a detatched HEAD, so we need to know what branch we're
-        # tracking
-        track => $branch,
-    };
+    # Set new default repo and configuration
+    # Deploy creates a detatched HEAD, so we need to know what branch we're
+    # tracking
+    $self->update_config( $opt, $repo_name, { track => $branch } );
 };
 
 1;

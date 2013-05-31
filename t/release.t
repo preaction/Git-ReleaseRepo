@@ -193,6 +193,7 @@ sub test_deploy($%) {
                 $conf->{$dir},
                 {
                     track => $test{branch},
+                    version_prefix => 'v',
                 },
                 'deploy config is complete and correct';
         };
@@ -387,7 +388,7 @@ subtest 'second release' => sub {
 };
 
 subtest 'deploy latest release' => sub {
-    my $result = run_cmd( 'Git::ReleaseRepo' => [ 'deploy', catdir( $rel_root, 'test-release' ) ] );
+    my $result = run_cmd( 'Git::ReleaseRepo' => [ 'deploy', catdir( $rel_root, 'test-release' ), '--version_prefix', 'v' ] );
     subtest 'deploy test-release-v0.2'
         => test_deploy 'test-release-v0.2',
             branch  => 'v0.2',
@@ -395,7 +396,7 @@ subtest 'deploy latest release' => sub {
 };
 
 subtest 'deploy first release as stable' => sub {
-    my $result = run_cmd( 'Git::ReleaseRepo' => [ 'deploy', '--branch', 'v0.1', catdir( $rel_root, 'test-release' ), 'stable', ] );
+    my $result = run_cmd( 'Git::ReleaseRepo' => [ 'deploy', '--branch', 'v0.1', catdir( $rel_root, 'test-release' ), 'stable', '--version_prefix', 'v' ] );
     subtest 'deploy stable'
         => test_deploy 'stable',
             branch  => 'v0.1',
