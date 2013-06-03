@@ -68,11 +68,16 @@ augment execute => sub {
         die "Could not checkout '$version'.\nEXIT: " . $cmd->exit . "\nSTDERR: " . ( join "\n", @stderr )
             . "\nSTDOUT: " . ( join "\n", @stdout );
     }
+    $repo->run( submodule => 'update', '--init' );
     if ( $opt->{master} ) {
-        $repo->run( submodule => 'foreach', 'git checkout master && git pull origin master' );
-    }
-    else {
-        $repo->run( submodule => 'update', '--init' );
+        my $cmd = $repo->command( submodule => 'foreach', 'git checkout master && git pull origin master' );
+        my @stderr = readline $cmd->stderr;
+        my @stdout = readline $cmd->stdout;
+        $cmd->close;
+        if ( $cmd->exit != 0 ) {
+            die "Could not checkout master\nEXIT: " . $cmd->exit . "\nSTDERR: " . ( join "\n", @stderr )
+                . "\nSTDOUT: " . ( join "\n", @stdout );
+        }
     }
     if ( $rename_repo ) {
         $repo_name = join "-", $self->repo_name_from_url( $args->[0] ), $branch;

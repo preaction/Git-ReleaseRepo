@@ -480,7 +480,7 @@ subtest 'deploy master for everything' => sub {
     $foo_repo->run( commit => -m => 'Added bugfix' );
 
     # Master deploy shows everything!
-    my $result = run_cmd( 'Git::ReleaseRepo' => [ 'deploy', '--master', catdir( $rel_root, 'test-release' ) ] );
+    my $result = run_cmd( 'Git::ReleaseRepo' => [ 'deploy', '--master', catdir( $rel_root, 'test-release' ), '--version_prefix', 'v' ] );
     my $sub_foo_readme = catfile( $rel_root, 'test-release-master', 'foo', 'README' );
     is read_file( $sub_foo_readme ), 'Foo version master', 'foo updated to master';
 };
