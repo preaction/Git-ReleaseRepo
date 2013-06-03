@@ -68,7 +68,6 @@ augment execute => sub {
         }
         print "\n";
     }
-    $git->checkout;
 };
 
 1;
