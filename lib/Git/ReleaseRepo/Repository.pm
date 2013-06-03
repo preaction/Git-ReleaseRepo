@@ -10,6 +10,7 @@ sub _keywords { qw(
     submodule submodule_git outdated checkout list_version_refs
     list_versions latest_version list_release_branches latest_release_branch
     version_sort show_ref ls_remote has_remote has_branch release_prefix
+    current_release
 ) }
 
 # I do not like this, but I can't think of any better way to have a default
@@ -134,7 +135,7 @@ sub version_sort {
 sub show_ref {
     my ( $self ) = @_;
     my %refs;
-    my $cmd = $self->command( 'show-ref' );
+    my $cmd = $self->command( 'show-ref', '--head' );
     while ( defined( my $line = readline $cmd->stdout ) ) {
         # <SHA1 hash> <symbolic ref>
         my ( $ref_id, $ref_name ) = split /\s+/, $line;
@@ -163,6 +164,26 @@ sub has_remote {
 sub has_branch {
     my ( $self, $name ) = @_;
     return grep { $_ eq $name } map { s/[*]?\s+//; $_ } $self->run( 'branch' );
+}
+
+sub current_release {
+    my ( $self ) = @_;
+    $self->command( 'fetch', '--tags' );
+    my %ref = $self->show_ref;
+    my @tags = ();
+#    ; use Data::Dumper;
+#    ; warn Dumper \%ref;
+    for my $key ( keys %ref ) {
+        next unless $key =~ m{^refs/tags};
+        if ( $ref{$key} eq $ref{HEAD} ) {
+            my ( $tag ) = $key =~ m{/([^/]+)$};
+            push @tags, $tag;
+        }
+    }
+#    ; warn "Found: " . Dumper \@tags;
+    my $version = [ sort version_sort @tags ]->[0];
+#    ; warn "Current release: $version";
+    return $version;
 }
 
 1;

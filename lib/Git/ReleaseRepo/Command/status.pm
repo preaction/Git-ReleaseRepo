@@ -25,13 +25,25 @@ augment execute => sub {
     # "bugfix" looks at release branch since latest release
     my ( $since_version, %outdated, %diff );
     my $git = $self->git;
-    if ( $opt->bugfix ) {
+    # Deploy branch
+    if ( my $track = $self->config->{ $self->repo_name }{track} ) {
+        my $current = $git->current_release;
+        print "On release $current";
+        my $latest = $git->latest_version( $track );
+        if ( $git->current_release ne $latest ) {
+            print " (can update to $latest)";
+        }
+        print "\n";
+    }
+    # Bugfix release
+    elsif ( $opt->bugfix ) {
         my $rel_branch = $git->latest_release_branch;
         $git->checkout( $rel_branch );
         $since_version = $git->latest_version( $rel_branch );
         %outdated = map { $_ => 1 } $git->outdated( 'refs/heads/' . $rel_branch );
         %diff = map { $_ => 1 } $git->outdated( 'refs/tags/' . $since_version );
     }
+    # Regular release
     else {
         $git->checkout;
         $since_version = $git->latest_release_branch;
