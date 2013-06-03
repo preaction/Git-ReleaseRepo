@@ -39,9 +39,9 @@ use App::Cmd::Tester::CaptureExternal qw( test_app );
 sub run_cmd {
     my $result = test_app( @_ );
     is $result->error, undef, 'no error';
-    ok !$result->stderr, 'ran with no errors or warnings' or (
-        diag $result->stdout and diag $result->stderr
-    );
+    ok !$result->stderr, 'ran with no errors or warnings' or do {
+        diag $result->stdout; diag $result->stderr
+    };
     return $result;
 }
 
