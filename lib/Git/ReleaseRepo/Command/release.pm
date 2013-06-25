@@ -7,6 +7,8 @@ use Moose;
 use Git::ReleaseRepo -command;
 use Git::Repository;
 
+with 'Git::ReleaseRepo::WithVersionPrefix';
+
 sub description {
     return 'Perform a release';
 }

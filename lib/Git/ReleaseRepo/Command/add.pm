@@ -7,6 +7,8 @@ use Moose;
 use Git::ReleaseRepo -command;
 use File::Spec::Functions qw( catdir );
 
+with 'Git::ReleaseRepo::WithVersionPrefix';
+
 override usage_desc => sub {
     my ( $self ) = @_;
     return super() . " <module_name> [<module_url>]";
