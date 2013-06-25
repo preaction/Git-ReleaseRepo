@@ -85,8 +85,6 @@ sub execute {
     my ( $self, $opt, $args ) = @_;
 
     inner();
-
-    $self->write_config;
 }
 
 no Moose;

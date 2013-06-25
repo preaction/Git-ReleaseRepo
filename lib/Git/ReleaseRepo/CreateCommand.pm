@@ -5,36 +5,28 @@ use strict;
 use warnings;
 use Moose;
 extends 'Git::ReleaseRepo::Command';
+use File::Spec::Functions qw( catfile );
+use YAML qw( LoadFile DumpFile );
 
 sub update_config {
-    my ( $self, $opt, $repo_name, $extra ) = @_;
+    my ( $self, $opt, $repo, $extra ) = @_;
+    my $config_file = catfile( $repo->git_dir, 'release' );
+    my $config = -f $config_file ? LoadFile( $config_file ) : {};
 
-    my $config = $self->config;
-    # Delete old default repo
-    if ( $extra->{default} ) {
-        for my $repo_name ( keys %$config ) {
-            my $repo_conf = $config->{$repo_name};
-            delete $repo_conf->{default};
-        }
-    }
-
-    my $repo_conf = $config->{$repo_name} ||= {};
     for my $conf ( qw( version_prefix ) ) {
         if ( exists $opt->{$conf} ) {
-            $repo_conf->{$conf} = $opt->{$conf};
+            $config->{$conf} = $opt->{$conf};
         }
     }
 
-    $config->{$repo_name} = { %$repo_conf, %$extra };
+    $config = { %$config, %$extra };
+    DumpFile( $config_file, $config );
 }
 
 sub validate_args {
     my ( $self, $opt, $args ) = @_;
     $self->usage_error( "Must give a repository URL!" ) if ( @$args < 1 );
     $self->usage_error( "Too many arguments" ) if ( @$args > 2 );
-    my $repo_name = $args->[1] || $self->repo_name_from_url( $args->[0] );
-    die "Release repository name '$args->[1]' already exists in '@{[$self->repo_root]}'!\n"
-        if -d catdir( $self->repo_root, $repo_name );
 }
 
 around opt_spec => sub {

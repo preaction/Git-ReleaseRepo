@@ -195,9 +195,9 @@ sub test_deploy($%) {
             is_current_tag $sub_repo, $test{tag};
         };
         subtest 'deployed configuration is correct' => sub {
-            my $conf = LoadFile( catfile( $rel_root, '.release', 'config' ) );
+            my $conf = LoadFile( catfile( $rel_root, $dir, '.git', 'release' ) );
             cmp_deeply
-                $conf->{$dir},
+                $conf,
                 {
                     track => $test{branch},
                     version_prefix => 'v',
