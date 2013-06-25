@@ -5,6 +5,11 @@ use Test::Most;
 use Test::Git;
 
 use YAML qw( LoadFile );
+use Cwd qw( getcwd );
+my $CWD = getcwd;
+END {
+    chdir $CWD;
+};
 use File::Spec::Functions qw( catdir catfile );
 use File::Slurp qw( read_file write_file );
 use File::Temp;
