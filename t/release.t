@@ -230,7 +230,7 @@ subtest 'initial creation' => sub {
     };
     subtest 'init' => sub {
         chdir $rel_repo->work_tree;
-        my $result = run_cmd( 'Git::ReleaseRepo' => [ 'init' ] );
+        my $result = run_cmd( 'Git::ReleaseRepo' => [ 'init', '--version_prefix', 'v' ] );
         ok -f catfile( $rel_repo->git_dir, 'release' ), 'config file created';
         my $config = LoadFile( catfile( $rel_repo->git_dir, 'release' ) );
         cmp_deeply $config, {

@@ -5,28 +5,38 @@ use strict;
 use warnings;
 use Moose;
 use Git::ReleaseRepo -command;
-use Cwd qw( abs_path );
+use Cwd qw( getcwd abs_path );
 use File::Spec::Functions qw( catdir catfile );
 use File::HomeDir;
 use File::Path qw( make_path );
-use File::Slurp qw( write_file );
+use YAML qw( DumpFile );
 
 sub description {
     return 'Initialize Git::ReleaseRepo';
 }
 
+around opt_spec => sub {
+    my ( $orig, $self ) = @_;
+    return (
+        $self->$orig,
+        [ 'version_prefix:s' => 'Set the version prefix of the release repository' ],
+    );
+};
+
 augment execute => sub {
     my ( $self, $opt, $args ) = @_;
-    my $dir = $opt->{root} || catdir( File::HomeDir->my_home, 'release' );
-    my $conf_dir = catdir( $dir, '.release' );
-    if ( -e $conf_dir ) {
-        die "Cannot initialize: Directory '$conf_dir' already exists!\n";
+    my $dir = $self->git->git_dir;
+    my $conf_file = catfile( $dir, 'release' );
+    if ( -e $conf_file ) {
+        die "Cannot initialize: File '$conf_file' already exists!\n";
     }
-    make_path( $conf_dir );
-    write_file( catfile( $conf_dir, 'config' ), '' );
-    if ( $opt->{root} && ( !$ENV{GIT_RELEASE_ROOT} || $ENV{GIT_RELEASE_ROOT} ne $dir ) ) {
-        print "Add 'GIT_RELEASE_ROOT=$dir' to your environment, or add '--root $dir' to your commands.\n";
+    my $repo_conf = {};
+    for my $conf ( qw( version_prefix ) ) {
+        if ( exists $opt->{$conf} ) {
+            $repo_conf->{$conf} = $opt->{$conf};
+        }
     }
+    DumpFile( $conf_file, $repo_conf );
 };
 
 1;
