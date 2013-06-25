@@ -4,7 +4,7 @@ Git::ReleaseRepo - Manage a release repository of Git submodules
 
 # VERSION
 
-version 0.001
+version 0.002
 
 # DESCRIPTION
 

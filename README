@@ -2,7 +2,7 @@ NAME
     Git::ReleaseRepo - Manage a release repository of Git submodules
 
 VERSION
-    version 0.001
+    version 0.002
 
 DESCRIPTION
     This application manages a Git repository for releases. It also follows

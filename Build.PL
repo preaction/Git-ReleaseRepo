@@ -18,7 +18,7 @@ my %module_build_args = (
     "Doug Bell <preaction\@cpan.org>"
   ],
   "dist_name" => "Git-ReleaseRepo",
-  "dist_version" => "0.001",
+  "dist_version" => "0.002",
   "license" => "perl",
   "module_name" => "Git::ReleaseRepo",
   "recommends" => {},
@@ -33,7 +33,7 @@ my %module_build_args = (
     "YAML::Tiny" => "1.51"
   },
   "script_files" => [
-    "bin/releaserepo"
+    "bin/git-release"
   ],
   "test_requires" => {
     "File::Slurp" => 0,
