@@ -512,7 +512,8 @@ subtest 'update master for everything' => sub {
     $bar_repo->run( commit => -m => 'Added bugfix' );
 
     # Master update shows everything!
-    my $result = run_cmd( 'Git::ReleaseRepo' => [ 'update', '--repo', 'test-release-master', '--master' ] );
+    chdir catdir( $rel_root, 'test-release-master' );
+    my $result = run_cmd( 'Git::ReleaseRepo' => [ 'update', '--master' ] );
     my $sub_bar_readme = catfile( $rel_root, 'test-release-master', 'bar', 'README' );
     is read_file( $sub_bar_readme ), 'Bar version master', 'bar updated to master';
 };
