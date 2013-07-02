@@ -39,87 +39,10 @@ else {
 my $rel_repo;
 
 use Git::ReleaseRepo;
-use App::Cmd::Tester::CaptureExternal qw( test_app );
-
-sub run_cmd {
-    my $result = test_app( @_ );
-    is $result->error, undef, 'no error';
-    ok !$result->stderr, 'ran with no errors or warnings' or do {
-        diag $result->stdout; diag $result->stderr
-    };
-    return $result;
-}
-
-sub is_repo_clean($;$) {
-    my ( $git, $message ) = @_;
-    $message ||= 'repository is clean';
-    my $cmd = $git->command( status => '--porcelain' );
-    my @lines = readline $cmd->stdout;
-    is scalar @lines, 0, $message or diag "Found:\n" . join "", @lines;
-}
-
-sub last_commit($) {
-    my ( $git ) = @_;
-    my $cmd = $git->command( 'diff-tree' => '--raw', '--root', 'HEAD' );
-    my @lines = readline $cmd->stdout;
-    #; use Data::Dumper;
-    #; print Dumper \@lines;
-    my @changes = map {; { 
-                    mode_src => $_->[0], 
-                    mode_dst => $_->[1], 
-                    sha1_src => $_->[2],
-                    sha1_dst => $_->[3],
-                    status   => $_->[4],
-                    path_src => $_->[5],
-                    path_dst => $_->[6],
-                } }
-                map { [ split /\s+/, $_ ] }
-                map { s/^://; $_ }
-                @lines[1..$#lines];
-    #; diag explain \@changes;
-    return @changes;
-}
-
-sub repo_branches($) {
-    my ( $git ) = @_;
-    my $cmd = $git->command( 'branch' );
-    # [* ] <branch>
-    return map { chomp; $_ } map { s/^[*\s]\s//; $_ } readline $cmd->stdout;
-}
-
-sub repo_tags($) {
-    my ( $git ) = @_;
-    my $cmd = $git->command( 'tag' );
-    return map { chomp; $_ } readline $cmd->stdout;
-}
-
-sub repo_refs($) {
-    my ( $git ) = @_;
-    my $cmd = $git->command( 'show-ref' );
-    return map { $_->[1], $_->[0] } map { [split] } readline $cmd->stdout;
-}
-
-sub current_branch($) {
-    my ( $git ) = @_;
-    my $cmd = $git->command( 'branch' );
-    # [* ] <branch>
-    return map { chomp; $_ } map { s/^[*\s]\s//; $_ } grep { /^[*]/ } readline $cmd->stdout;
-}
-
-sub is_current_tag($$) {
-    my ( $git, $tag ) = @_;
-    my $cmd = $git->command( 'describe', '--tags', '--match', $tag );
-    # <tag>
-    # OR
-    # <tag>-<commits since tag>-<shorthash>
-    my $line = readline $cmd->stdout;
-    if ( $cmd->exit ) {
-        fail "$tag is not current tag: " . readline $cmd->stderr;
-    }
-    #print "describe: $line\n";
-    chomp $line;
-    is $line, $tag, "commit is tagged '$tag'";
-}
+use Git::ReleaseRepo::Test qw(
+    run_cmd is_repo_clean last_commit repo_branches repo_tags repo_refs
+    current_branch is_current_tag
+);
 
 sub test_repo_has_refs($%) {
     my ( $repo, %refs ) = @_;
@@ -167,13 +90,13 @@ sub test_status($%) {
 
 sub test_release_status(%) {
     chdir catdir( $rel_root, 'test-release' );
-    my $result = run_cmd( 'Git::ReleaseRepo' => [ 'status' ] );
+    my $result = run_cmd( 'status' );
     return test_status $result->{stdout}, @_;
 }
 
 sub test_bugfix_status(%) {
     chdir catdir( $rel_root, 'test-release' );
-    my $result = run_cmd( 'Git::ReleaseRepo' => [ 'status', '--bugfix' ] );
+    my $result = run_cmd( 'status', '--bugfix' );
     return test_status $result->{stdout}, @_;
 }
 
@@ -211,7 +134,7 @@ sub test_deploy_status($$$) {
     my ( $repo, $from, $to ) = @_;
     return sub {
         chdir catdir( $rel_root, $repo );
-        my $result = run_cmd( 'Git::ReleaseRepo' => [ 'status' ] );
+        my $result = run_cmd( 'status' );
         like $result->{stdout}, qr/^On release $from/, "Currently on $from";
         if ( $to ) {
             like $result->{stdout}, qr/\(can update to $to\)/, "Can be updated to $to";
@@ -230,7 +153,7 @@ subtest 'initial creation' => sub {
     };
     subtest 'init' => sub {
         chdir $rel_repo->work_tree;
-        my $result = run_cmd( 'Git::ReleaseRepo' => [ 'init', '--version_prefix', 'v' ] );
+        my $result = run_cmd( 'init', '--version_prefix', 'v' );
         ok -f catfile( $rel_repo->git_dir, 'release' ), 'config file created';
         my $config = LoadFile( catfile( $rel_repo->git_dir, 'release' ) );
         cmp_deeply $config, {
@@ -241,7 +164,7 @@ subtest 'initial creation' => sub {
 
 subtest 'add new module' => sub {
     chdir $rel_repo->work_tree;
-    my $result = run_cmd( 'Git::ReleaseRepo' => [ 'add', 'foo', $foo_repo->work_tree ] );
+    my $result = run_cmd( 'add', 'foo', $foo_repo->work_tree );
 
     subtest 'repository is correct' => sub {
         is_repo_clean $rel_repo;
@@ -271,7 +194,7 @@ subtest 'update module' => sub {
         => test_release_status foo => [qw( changed outdated )];
 
     chdir catdir( $rel_root, 'test-release' );
-    my $result = test_app( 'Git::ReleaseRepo' => [ 'add', 'foo' ] );
+    my $result = run_cmd( 'add', 'foo' );
 
     subtest 'module status is no longer out-of-date'
         => test_release_status foo => 'changed';
@@ -279,7 +202,7 @@ subtest 'update module' => sub {
 
 subtest 'first release' => sub {
     chdir $rel_repo->work_tree;
-    my $result = run_cmd( 'Git::ReleaseRepo' => [ 'release' ] );
+    my $result = run_cmd( 'release' );
 
     subtest 'release repository is correct'
         => test_repo_has_refs $rel_repo, branch => 'v0.1', tag => 'v0.1.0';
@@ -311,7 +234,7 @@ subtest 'add bugfix' => sub {
 
     subtest 'add bugfix update' => sub {
         chdir $rel_repo->work_tree;
-        my $result = run_cmd( 'Git::ReleaseRepo' => [ 'add', '--bugfix', 'foo' ] );
+        my $result = run_cmd( 'add', '--bugfix', 'foo' );
     };
 
     subtest 'repo branch "v0.1" status is correct' => sub {
@@ -346,7 +269,7 @@ subtest 'add bugfix' => sub {
 subtest 'update non-bugfix' => sub {
     subtest 'add new module' => sub {
         chdir $rel_repo->work_tree;
-        my $result = run_cmd( 'Git::ReleaseRepo' => [ 'add', 'bar', $bar_repo->work_tree ] );
+        my $result = run_cmd( 'add', 'bar', $bar_repo->work_tree );
     };
     subtest 'release status is changed, not out-of-date'
         => test_release_status foo => undef, bar => 'changed';
@@ -358,7 +281,7 @@ subtest 'update non-bugfix' => sub {
 subtest 'bugfix release' => sub {
     # Only foo is released
     chdir $rel_repo->work_tree;
-    my $result = run_cmd( 'Git::ReleaseRepo' => [ 'release', '--bugfix' ] );
+    my $result = run_cmd( 'release', '--bugfix' );
 
     subtest 'release repository is correct'
         => test_repo_has_refs $rel_repo, branch => 'v0.1', tag => [qw( v0.1.0 v0.1.1 )];
@@ -375,7 +298,7 @@ subtest 'bugfix release' => sub {
 
 subtest 'second release' => sub {
     chdir $rel_repo->work_tree;
-    my $result = run_cmd( 'Git::ReleaseRepo' => [ 'release' ] );
+    my $result = run_cmd( 'release' );
 
     subtest 'release repository is correct'
         => test_repo_has_refs $rel_repo,
@@ -398,7 +321,7 @@ subtest 'second release' => sub {
 
 subtest 'deploy latest release' => sub {
     chdir $rel_root;
-    my $result = run_cmd( 'Git::ReleaseRepo' => [ 'deploy', catdir( $rel_root, 'test-release' ), '--version_prefix', 'v' ] );
+    my $result = run_cmd( 'deploy', catdir( $rel_root, 'test-release' ), '--version_prefix', 'v' );
     subtest 'deploy test-release-v0.2'
         => test_deploy 'test-release-v0.2',
             branch  => 'v0.2',
@@ -407,7 +330,7 @@ subtest 'deploy latest release' => sub {
 
 subtest 'deploy first release as stable' => sub {
     chdir $rel_root;
-    my $result = run_cmd( 'Git::ReleaseRepo' => [ 'deploy', '--branch', 'v0.1', catdir( $rel_root, 'test-release' ), 'stable', '--version_prefix', 'v' ] );
+    my $result = run_cmd( 'deploy', '--branch', 'v0.1', catdir( $rel_root, 'test-release' ), 'stable', '--version_prefix', 'v' );
     subtest 'deploy stable'
         => test_deploy 'stable',
             branch  => 'v0.1',
@@ -428,7 +351,7 @@ subtest 'bugfix release: v0.2.1' => sub {
 
     subtest 'add bugfix update' => sub {
         chdir $rel_repo->work_tree;
-        my $result = run_cmd( 'Git::ReleaseRepo' => [ 'add', '--bugfix', 'foo' ] );
+        my $result = run_cmd( 'add', '--bugfix', 'foo' );
     };
 
     subtest 'bugfix status is changed, not out-of-date'
@@ -444,7 +367,7 @@ subtest 'bugfix release: v0.2.1' => sub {
 
     subtest 'release v0.2.1' => sub {
         chdir $rel_repo->work_tree;
-        my $result = run_cmd( 'Git::ReleaseRepo' => [ 'release', '--bugfix' ] );
+        my $result = run_cmd( 'release', '--bugfix' );
     };
 
     subtest 'release repository is correct'
@@ -471,7 +394,7 @@ subtest 'bugfix release: v0.2.1' => sub {
 
 subtest 'update deployment to v0.2.1' => sub {
     chdir catdir( $rel_root, 'test-release-v0.2' );
-    my $result = run_cmd( 'Git::ReleaseRepo' => [ 'update' ] );
+    my $result = run_cmd( 'update' );
     subtest 'bugfix status is unchanged, not out-of-date'
         => test_bugfix_status foo => undef;
     subtest 'release status is unchanged'
@@ -495,7 +418,7 @@ subtest 'deploy master for everything' => sub {
 
     # Master deploy shows everything!
     chdir $rel_root;
-    my $result = run_cmd( 'Git::ReleaseRepo' => [ 'deploy', '--master', catdir( $rel_root, 'test-release' ), '--version_prefix', 'v' ] );
+    my $result = run_cmd( 'deploy', '--master', catdir( $rel_root, 'test-release' ), '--version_prefix', 'v' );
     my $sub_foo_readme = catfile( $rel_root, 'test-release-master', 'foo', 'README' );
     is read_file( $sub_foo_readme ), 'Foo version master', 'foo updated to master';
 };
@@ -513,7 +436,7 @@ subtest 'update master for everything' => sub {
 
     # Master update shows everything!
     chdir catdir( $rel_root, 'test-release-master' );
-    my $result = run_cmd( 'Git::ReleaseRepo' => [ 'update', '--master' ] );
+    my $result = run_cmd( 'update', '--master' );
     my $sub_bar_readme = catfile( $rel_root, 'test-release-master', 'bar', 'README' );
     is read_file( $sub_bar_readme ), 'Bar version master', 'bar updated to master';
 };
