@@ -15,6 +15,13 @@ sub description {
     return 'Initialize Git::ReleaseRepo';
 }
 
+sub validate_args {
+    my ( $self, $opt, $args ) = @_;
+    if ( !$opt->{version_prefix} ) {
+        return $self->usage_error( "Must have a --version_prefix" );
+    }
+}
+
 around opt_spec => sub {
     my ( $orig, $self ) = @_;
     return (
