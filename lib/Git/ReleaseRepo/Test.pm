@@ -3,16 +3,20 @@ package Git::ReleaseRepo::Test;
 use strict;
 use warnings;
 use Test::Most;
-use App::Cmd::Tester::CaptureExternal qw( test_app );
+use App::Cmd::Tester::CaptureExternal 'test_app';
 use Sub::Exporter -setup => {
     exports => [qw(
-        run_cmd is_repo_clean last_commit repo_branches repo_tags repo_refs
+        get_cmd_result run_cmd is_repo_clean last_commit repo_branches repo_tags repo_refs
         current_branch is_current_tag
     )],
 };
 
+sub get_cmd_result {
+    return test_app( 'Git::ReleaseRepo' => \@_ );
+}
+
 sub run_cmd {
-    my $result = test_app( 'Git::ReleaseRepo' => \@_ );
+    my $result = get_cmd_result( 'Git::ReleaseRepo' => \@_ );
     is $result->error, undef, 'no error';
     ok !$result->stderr, 'ran with no errors or warnings' or do {
         diag $result->stdout; diag $result->stderr
