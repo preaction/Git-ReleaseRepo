@@ -16,9 +16,10 @@ sub get_cmd_result {
 }
 
 sub run_cmd {
-    my $result = get_cmd_result( 'Git::ReleaseRepo' => \@_ );
+    my $result = get_cmd_result( @_ );
+    ok !$result->stderr, 'nothing on stderr';
     is $result->error, undef, 'no error';
-    ok !$result->stderr, 'ran with no errors or warnings' or do {
+    is $result->exit_code, 0, 'ran with no errors or warnings' or do {
         diag $result->stdout; diag $result->stderr
     };
     return $result;
