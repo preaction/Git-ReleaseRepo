@@ -7,6 +7,9 @@ use Test::Git;
 use YAML qw( LoadFile );
 use Cwd qw( getcwd );
 my $CWD = getcwd;
+BEGIN {
+    diag `git --version`;
+};
 END {
     chdir $CWD;
 };
@@ -39,6 +42,8 @@ else {
 my $rel_repo;
 
 use Git::ReleaseRepo;
+use Git::ReleaseRepo::Command::init;
+BEGIN { diag $INC{'Git/ReleaseRepo.pm'} };
 use Git::ReleaseRepo::Test qw(
     run_cmd is_repo_clean last_commit repo_branches repo_tags repo_refs
     current_branch is_current_tag
