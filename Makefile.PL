@@ -31,7 +31,7 @@ my %WriteMakefileArgs = (
     "File::Spec::Functions" => 0,
     "Git::Repository" => "1.26",
     "Moose" => "2.000",
-    "YAML::Tiny" => "1.51"
+    "YAML" => "0.84"
   },
   "TEST_REQUIRES" => {
     "File::Slurp" => 0,
@@ -40,7 +40,7 @@ my %WriteMakefileArgs = (
     "Test::Compile" => 0,
     "Test::Most" => 0
   },
-  "VERSION" => "0.002",
+  "VERSION" => "0.003",
   "test" => {
     "TESTS" => "t/*.t"
   }

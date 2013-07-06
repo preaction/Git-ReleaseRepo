@@ -18,7 +18,7 @@ my %module_build_args = (
     "Doug Bell <preaction\@cpan.org>"
   ],
   "dist_name" => "Git-ReleaseRepo",
-  "dist_version" => "0.002",
+  "dist_version" => "0.003",
   "license" => "perl",
   "module_name" => "Git::ReleaseRepo",
   "recommends" => {},
@@ -30,7 +30,7 @@ my %module_build_args = (
     "File::Spec::Functions" => 0,
     "Git::Repository" => "1.26",
     "Moose" => "2.000",
-    "YAML::Tiny" => "1.51"
+    "YAML" => "0.84"
   },
   "script_files" => [
     "bin/git-release"

@@ -8,5 +8,6 @@ inc
 Makefile
 Build
 _build
+.build
 cover_db
 Git-ReleaseRepo*
