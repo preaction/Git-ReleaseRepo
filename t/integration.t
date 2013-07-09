@@ -207,7 +207,7 @@ subtest 'update module' => sub {
 
 subtest 'first release' => sub {
     chdir $rel_repo->work_tree;
-    my $result = run_cmd( 'release' );
+    my $result = run_cmd( 'commit' );
 
     subtest 'release repository is correct'
         => test_repo_has_refs $rel_repo, branch => 'v0.1', tag => 'v0.1.0';
@@ -286,7 +286,7 @@ subtest 'update non-bugfix' => sub {
 subtest 'bugfix release' => sub {
     # Only foo is released
     chdir $rel_repo->work_tree;
-    my $result = run_cmd( 'release', '--bugfix' );
+    my $result = run_cmd( 'commit', '--bugfix' );
 
     subtest 'release repository is correct'
         => test_repo_has_refs $rel_repo, branch => 'v0.1', tag => [qw( v0.1.0 v0.1.1 )];
@@ -303,7 +303,7 @@ subtest 'bugfix release' => sub {
 
 subtest 'second release' => sub {
     chdir $rel_repo->work_tree;
-    my $result = run_cmd( 'release' );
+    my $result = run_cmd( 'commit' );
 
     subtest 'release repository is correct'
         => test_repo_has_refs $rel_repo,
@@ -372,7 +372,7 @@ subtest 'bugfix release: v0.2.1' => sub {
 
     subtest 'release v0.2.1' => sub {
         chdir $rel_repo->work_tree;
-        my $result = run_cmd( 'release', '--bugfix' );
+        my $result = run_cmd( 'commit', '--bugfix' );
     };
 
     subtest 'release repository is correct'

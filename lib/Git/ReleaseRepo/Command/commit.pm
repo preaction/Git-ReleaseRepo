@@ -1,5 +1,5 @@
-package Git::ReleaseRepo::Command::release;
-# ABSTRACT: Perform a release
+package Git::ReleaseRepo::Command::commit;
+# ABSTRACT: Commit a release
 
 use strict;
 use warnings;
