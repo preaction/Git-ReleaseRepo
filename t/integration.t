@@ -399,7 +399,7 @@ subtest 'bugfix release: v0.2.1' => sub {
 
 subtest 'update deployment to v0.2.1' => sub {
     chdir catdir( $rel_root, 'test-release-v0.2' );
-    my $result = run_cmd( 'update' );
+    my $result = run_cmd( 'pull' );
     subtest 'bugfix status is unchanged, not out-of-date'
         => test_bugfix_status foo => undef;
     subtest 'release status is unchanged'
@@ -441,7 +441,7 @@ subtest 'update master for everything' => sub {
 
     # Master update shows everything!
     chdir catdir( $rel_root, 'test-release-master' );
-    my $result = run_cmd( 'update', '--master' );
+    my $result = run_cmd( 'pull', '--master' );
     my $sub_bar_readme = catfile( $rel_root, 'test-release-master', 'bar', 'README' );
     is read_file( $sub_bar_readme ), 'Bar version master', 'bar updated to master';
 };

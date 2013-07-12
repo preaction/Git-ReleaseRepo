@@ -1,5 +1,5 @@
-package Git::ReleaseRepo::Command::update;
-# ABSTRACT: Update a deployed release repository
+package Git::ReleaseRepo::Command::pull;
+# ABSTRACT: Update a release repository
 
 use Moose;
 extends 'Git::ReleaseRepo::Command';
