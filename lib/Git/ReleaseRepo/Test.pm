@@ -3,11 +3,14 @@ package Git::ReleaseRepo::Test;
 use strict;
 use warnings;
 use Test::Most;
+use Test::Git;
+use File::Spec::Functions qw( catfile catdir );
+use File::Slurp qw( write_file );
 use App::Cmd::Tester::CaptureExternal 'test_app';
 use Sub::Exporter -setup => {
     exports => [qw(
         get_cmd_result run_cmd is_repo_clean last_commit repo_branches repo_tags repo_refs
-        current_branch is_current_tag
+        current_branch is_current_tag create_module_repo
     )],
 };
 
@@ -94,6 +97,15 @@ sub is_current_tag($$) {
     #print "describe: $line\n";
     chomp $line;
     is $line, $tag, "commit is tagged '$tag'";
+}
+
+sub create_module_repo {
+    my $repo = test_repository;
+    my $readme = catfile( $repo->work_tree, 'README' );
+    write_file( $readme, 'TEST' );
+    $repo->run( add => $readme );
+    $repo->run( 'commit', -m => 'commit readme' );
+    return $repo;
 }
 
 1;
