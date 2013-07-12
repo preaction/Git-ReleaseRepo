@@ -1,7 +1,7 @@
 
 use strict;
 use warnings;
-use Test::Most;
+use Test::Most 'die';
 use Test::Git;
 
 use YAML qw( LoadFile );
@@ -95,13 +95,15 @@ sub test_status($%) {
 
 sub test_release_status(%) {
     chdir catdir( $rel_root, 'test-release' );
+    run_cmd( 'checkout', 'master' );
     my $result = run_cmd( 'status' );
     return test_status $result->{stdout}, @_;
 }
 
 sub test_bugfix_status(%) {
     chdir catdir( $rel_root, 'test-release' );
-    my $result = run_cmd( 'status', '--bugfix' );
+    run_cmd( 'checkout', '--bugfix' );
+    my $result = run_cmd( 'status' );
     return test_status $result->{stdout}, @_;
 }
 
@@ -239,7 +241,8 @@ subtest 'add bugfix' => sub {
 
     subtest 'add bugfix update' => sub {
         chdir $rel_repo->work_tree;
-        my $result = run_cmd( 'add', '--bugfix', 'foo' );
+        run_cmd( 'checkout', '--bugfix' );
+        my $result = run_cmd( 'add', 'foo' );
     };
 
     subtest 'repo branch "v0.1" status is correct' => sub {
@@ -272,6 +275,8 @@ subtest 'add bugfix' => sub {
 };
 
 subtest 'update non-bugfix' => sub {
+    run_cmd( 'checkout', 'master' );
+
     subtest 'add new module' => sub {
         chdir $rel_repo->work_tree;
         my $result = run_cmd( 'add', 'bar', $bar_repo->work_tree );
@@ -286,7 +291,8 @@ subtest 'update non-bugfix' => sub {
 subtest 'bugfix release' => sub {
     # Only foo is released
     chdir $rel_repo->work_tree;
-    my $result = run_cmd( 'commit', '--bugfix' );
+    run_cmd( 'checkout', '--bugfix' );
+    my $result = run_cmd( 'commit' );
 
     subtest 'release repository is correct'
         => test_repo_has_refs $rel_repo, branch => 'v0.1', tag => [qw( v0.1.0 v0.1.1 )];
@@ -303,6 +309,7 @@ subtest 'bugfix release' => sub {
 
 subtest 'second release' => sub {
     chdir $rel_repo->work_tree;
+    run_cmd( 'checkout', 'master' );
     my $result = run_cmd( 'commit' );
 
     subtest 'release repository is correct'
@@ -356,7 +363,8 @@ subtest 'bugfix release: v0.2.1' => sub {
 
     subtest 'add bugfix update' => sub {
         chdir $rel_repo->work_tree;
-        my $result = run_cmd( 'add', '--bugfix', 'foo' );
+        run_cmd( 'checkout', '--bugfix' );
+        my $result = run_cmd( 'add', 'foo' );
     };
 
     subtest 'bugfix status is changed, not out-of-date'
@@ -372,7 +380,8 @@ subtest 'bugfix release: v0.2.1' => sub {
 
     subtest 'release v0.2.1' => sub {
         chdir $rel_repo->work_tree;
-        my $result = run_cmd( 'commit', '--bugfix' );
+        run_cmd( 'checkout', '--bugfix' );
+        my $result = run_cmd( 'commit' );
     };
 
     subtest 'release repository is correct'

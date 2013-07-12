@@ -13,20 +13,13 @@ sub description {
     return 'Show the status of a release repository';
 }
 
-around opt_spec => sub {
-    my ( $orig, $self ) = @_;
-    return (
-        $self->$orig(),
-        [ 'bugfix' => 'Check the status of the current release branch' ],
-    );
-};
-
 augment execute => sub {
     my ( $self, $opt, $args ) = @_;
     # "master" looks at master since latest release branch
     # "bugfix" looks at release branch since latest release
     my ( $since_version, %outdated, %diff );
     my $git = $self->git;
+    my $bugfix = $git->current_branch ne 'master';
     # Deploy branch
     if ( my $track = $self->config->{track} ) {
         my $current = $git->current_release;
@@ -38,16 +31,14 @@ augment execute => sub {
         print "\n";
     }
     # Bugfix release
-    elsif ( $opt->bugfix ) {
-        my $rel_branch = $git->latest_release_branch;
-        $git->checkout( $rel_branch );
+    elsif ( $bugfix ) {
+        my $rel_branch = $git->current_branch;
         $since_version = $git->latest_version( $rel_branch );
         %outdated = map { $_ => 1 } $git->outdated( 'refs/heads/' . $rel_branch );
         %diff = map { $_ => 1 } $git->outdated( 'refs/tags/' . $since_version );
     }
     # Regular release
     else {
-        $git->checkout;
         $since_version = $git->latest_release_branch;
         %outdated = map { $_ => 1 } $git->outdated( 'refs/heads/master' );
         %diff = $since_version ? map { $_ => 1 } $git->outdated( 'refs/tags/' . $since_version . '.0' ) 

@@ -10,7 +10,7 @@ sub _keywords { qw(
     submodule submodule_git outdated checkout list_version_refs
     list_versions latest_version list_release_branches latest_release_branch
     version_sort show_ref ls_remote has_remote has_branch release_prefix
-    current_release
+    current_release current_branch
 ) }
 
 # I do not like this, but I can't think of any better way to have a default
@@ -164,6 +164,12 @@ sub has_remote {
 sub has_branch {
     my ( $self, $name ) = @_;
     return grep { $_ eq $name } map { s/[*]?\s+//; $_ } $self->run( 'branch' );
+}
+
+sub current_branch {
+    my ( $self ) = @_;
+    my @branches = map { s/^\*\s+//; $_ } grep { /^\*/ } $self->run( 'branch' );
+    return $branches[0];
 }
 
 sub current_release {

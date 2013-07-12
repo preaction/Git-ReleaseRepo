@@ -13,19 +13,12 @@ sub description {
     return 'Perform a release';
 }
 
-around opt_spec => sub {
-    my ( $orig, $self ) = @_;
-    return (
-        $self->$orig(),
-        [ 'bugfix' => 'Release a bugfix release from the release branch' ],
-    );
-};
-
 augment execute => sub {
     my ( $self, $opt, $args ) = @_;
     my ( $version, $branch_version );
     my $git = $self->git;
     my $prefix = $self->release_prefix;
+    my $bugfix = $git->current_branch ne 'master';
     if ( $args->[0] ) {
         $version = $args->[0];
         ( $branch_version ) = $args->[0] =~ m/^($prefix\d+[.]\d+)/;
@@ -34,7 +27,7 @@ augment execute => sub {
         my $latest_version = $git->latest_version;
         my @parts = $latest_version ? split /[.]/, $latest_version
                   : ( "${prefix}0", 0, 0 ); # Our first release!
-        if ( $opt->{bugfix} ) {
+        if ( $bugfix ) {
             # Bugfix releases increment the third number
             $parts[2]++;
         }
@@ -49,22 +42,17 @@ augment execute => sub {
         $branch_version = join ".", @parts[0..1];
     }
     print "Release version $version\n";
-    print "Starting release cycle $branch_version\n" if !$opt->{bugfix};
-    if ( $opt->bugfix ) {
-        $git->checkout( $git->latest_release_branch );
-    }
-    else {
-        $git->checkout;
-    }
+    print "Starting release cycle $branch_version\n" if !$bugfix;
+
     # Release all modules too!
     for my $module ( keys $git->submodule ) {
         my $subgit = $git->submodule_git( $module );
-        if ( !$opt->{bugfix} ) {
+        if ( !$bugfix ) {
             $self->branch_release( $subgit, $branch_version );
         }
         $self->tag_release( $subgit, $version );
     }
-    if ( !$opt->{bugfix} ) {
+    if ( !$bugfix ) {
         $self->branch_release( $git, $branch_version );
     }
     $self->tag_release( $git, $version );
