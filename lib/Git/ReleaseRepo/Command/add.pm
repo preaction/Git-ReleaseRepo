@@ -22,7 +22,6 @@ around opt_spec => sub {
     my ( $orig, $self ) = @_;
     return (
         $self->$orig(),
-        [ 'bugfix' => 'Add to the latest release branch as a bug fix' ],
         [ 'all|a' => "Add all out-of-date modules to the release" ],
     );
 };
