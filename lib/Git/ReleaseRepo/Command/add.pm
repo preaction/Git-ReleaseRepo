@@ -47,17 +47,7 @@ sub validate_args {
 augment execute => sub {
     my ( $self, $opt, $args ) = @_;
     my $git = $self->git;
-    my $branch;
-    if ( $opt->bugfix ) {
-        $branch = $git->latest_release_branch;
-        die "Cannot add with --bugfix: No release branch found!\n" if !$branch;
-    }
-    else {
-        $branch = "master";
-    }
-    if ( $git->has_branch( $branch ) ) {
-        $git->checkout( $branch );
-    }
+    my $branch = $git->current_branch;
     if ( $opt->all ) {
         my @outdated = $git->outdated;
         for my $outdated ( @outdated ) {
