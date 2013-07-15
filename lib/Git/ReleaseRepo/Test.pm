@@ -2,6 +2,7 @@ package Git::ReleaseRepo::Test;
 
 use strict;
 use warnings;
+use v5.10;
 use Test::Most;
 use Test::Git;
 use File::Spec::Functions qw( catfile catdir );
@@ -10,7 +11,7 @@ use App::Cmd::Tester::CaptureExternal 'test_app';
 use Sub::Exporter -setup => {
     exports => [qw(
         get_cmd_result run_cmd is_repo_clean last_commit repo_branches repo_tags repo_refs
-        current_branch is_current_tag create_module_repo
+        current_branch is_current_tag create_module_repo create_clone repo_root
     )],
 };
 
@@ -106,6 +107,28 @@ sub create_module_repo {
     $repo->run( add => $readme );
     $repo->run( 'commit', -m => 'commit readme' );
     return $repo;
+}
+
+sub create_clone {
+    my ( $root, $of, $name ) = @_;
+    chdir $root;
+    Git::Repository->run( clone => $of->work_tree, $name );
+    chdir catdir( $root, $name );
+    my $result = run_cmd( 'init', '--version_prefix', 'v' );
+    return Git::Repository->new( work_tree => catdir( $root, $name ) );
+}
+
+sub repo_root {
+    state $clone_dir;
+    if ( $ENV{NO_CLEANUP} ) {
+        $clone_dir = File::Temp->newdir( CLEANUP => 0 );
+        print "# Release root: $clone_dir\n";
+        END { print "# Release root: $clone_dir\n" if $ENV{NO_CLEANUP} }
+    }
+    else {
+        $clone_dir = File::Temp->newdir( CLEANUP => 1 );
+    }
+    return $clone_dir;
 }
 
 1;
