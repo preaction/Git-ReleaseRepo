@@ -10,7 +10,7 @@ sub _keywords { qw(
     submodule submodule_git outdated checkout list_version_refs
     list_versions latest_version list_release_branches latest_release_branch
     version_sort show_ref ls_remote has_remote has_branch release_prefix
-    current_release current_branch
+    current_release current_branch run_cmd
 ) }
 
 # I do not like this, but I can't think of any better way to have a default
@@ -190,6 +190,16 @@ sub current_release {
     my $version = [ sort version_sort @tags ]->[0];
 #    ; warn "Current release: $version";
     return $version;
+}
+
+sub run_cmd {
+    my ( $self, @command ) = @_;
+    my $cmd = $self->command( @command );
+    my $stdout = readline $cmd->stdout;
+    my $stderr = readline $cmd->stderr;
+    $cmd->close;
+    my $code = $cmd->exit;
+    return ( $code, $stdout, $stderr );
 }
 
 1;
