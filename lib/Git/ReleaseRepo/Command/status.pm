@@ -57,7 +57,7 @@ augment execute => sub {
             print " changed";
         }
         if ( $outdated{$changed} ) {
-            print " (can add)";
+            print " (can update)";
         }
         print "\n";
     }

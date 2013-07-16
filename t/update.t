@@ -24,7 +24,7 @@ my $origin_repo = create_release_repo( repo_root, 'origin',
 );
 my $clone_dir = repo_root;
 
-sub test_add {
+sub test_update {
     my ( $repo, $branch, @modules ) = @_;
     return sub {
         # A commit has happened
@@ -45,12 +45,26 @@ sub test_add {
     };
 }
 
-subtest 'add a new module' => sub {
-    my $new_mod = create_module_repo;
-    my $clone_repo = create_clone( $clone_dir, $origin_repo, 'add-new' );
+subtest 'update an existing module' => sub {
+    write_file( $module_readme, "ADD EXISTING" );
+    commit_all( $module_repo );
+
+    my $clone_repo = create_clone( $clone_dir, $origin_repo, 'add-existing' );
     chdir $clone_repo->work_tree;
-    run_cmd( 'add', 'new-mod', $new_mod->work_tree );
-    subtest 'new module added' => test_add( $clone_repo, master => 'new-mod', '.gitmodules' );
+    run_cmd( 'update', 'module' );
+
+    subtest 'existing module added' => test_update( $clone_repo, master => 'module' );
+};
+
+subtest 'update all' => sub {
+    write_file( $module_readme, "Add all" );
+    commit_all( $module_repo );
+    write_file( $other_readme, "Add all" );
+    commit_all( $other_repo );
+    my $clone_repo = create_clone( $clone_dir, $origin_repo, 'add-all' );
+    chdir $clone_repo->work_tree;
+    run_cmd( 'update', '-a' );
+    subtest 'all existing modules updated' => test_update( $clone_repo, master => 'module', 'other' );
 };
 
 chdir $cwd;

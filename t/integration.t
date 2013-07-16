@@ -72,7 +72,7 @@ sub test_status($%) {
     return sub {
         for my $mod ( keys %modules ) {
             if ( not defined $modules{$mod} ) {
-                unlike $stdout, qr/^$mod/m, "module '$mod' unchanged and cannot add";
+                unlike $stdout, qr/^$mod/m, "module '$mod' unchanged and cannot update";
                 next;
             }
             my %test = map { $_ => 1 }
@@ -84,10 +84,10 @@ sub test_status($%) {
                 unlike $stdout, qr/^$mod\s+changed/m, "module '$mod' unchanged";
             }
             if ( $test{outdated} ) {
-                like $stdout, qr/^$mod.*can add/m, "module '$mod' outdated";
+                like $stdout, qr/^$mod.*can update/m, "module '$mod' outdated";
             }
             else { # not outdated
-                unlike $stdout, qr/^$mod.*can add/m, "module '$mod' outdated";
+                unlike $stdout, qr/^$mod.*can update/m, "module '$mod' outdated";
             }
         }
     };
@@ -201,7 +201,7 @@ subtest 'update module' => sub {
         => test_release_status foo => [qw( changed outdated )];
 
     chdir catdir( $rel_root, 'test-release' );
-    my $result = run_cmd( 'add', 'foo' );
+    my $result = run_cmd( 'update', 'foo' );
 
     subtest 'module status is no longer out-of-date'
         => test_release_status foo => 'changed';
@@ -242,7 +242,7 @@ subtest 'add bugfix' => sub {
     subtest 'add bugfix update' => sub {
         chdir $rel_repo->work_tree;
         run_cmd( 'checkout', '--bugfix' );
-        my $result = run_cmd( 'add', 'foo' );
+        my $result = run_cmd( 'update', 'foo' );
     };
 
     subtest 'repo branch "v0.1" status is correct' => sub {
@@ -364,7 +364,7 @@ subtest 'bugfix release: v0.2.1' => sub {
     subtest 'add bugfix update' => sub {
         chdir $rel_repo->work_tree;
         run_cmd( 'checkout', '--bugfix' );
-        my $result = run_cmd( 'add', 'foo' );
+        my $result = run_cmd( 'update', 'foo' );
     };
 
     subtest 'bugfix status is changed, not out-of-date'

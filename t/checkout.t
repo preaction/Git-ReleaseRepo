@@ -4,7 +4,7 @@ use Cwd qw( getcwd );
 use File::Temp;
 use Test::Git;
 use Git::ReleaseRepo::Test qw( run_cmd get_cmd_result create_module_repo repo_tags repo_branches 
-                            create_clone repo_root );
+                            create_clone repo_root commit_all );
 use File::Spec::Functions qw( catdir catfile );
 use File::Slurp qw( write_file );
 use Git::ReleaseRepo;
@@ -27,11 +27,10 @@ subtest 'behind origin' => sub {
 
     subtest 'update origin' => sub {
         write_file( $module_readme, 'TEST ONE' );
-        $module_repo->run( add => $module_readme );
-        $module_repo->run( 'commit', -m => 'test one' );
+        commit_all( $module_repo );
 
         chdir $origin_repo->work_tree;
-        run_cmd( add => 'module' );
+        run_cmd( update => 'module' );
         run_cmd( 'commit' );
     };
     subtest 'checkout' => sub {
@@ -50,7 +49,7 @@ subtest 'behind origin' => sub {
 #        $module_repo->run( 'commit', -m => 'test two' );
 
 #        chdir $clone_repo->work_tree;
-#        run_cmd( add => 'module' );
+#        run_cmd( update => 'module' );
 #        run_cmd( 'commit' );
 #    };
 #    subtest 'checkout' => sub {

@@ -27,7 +27,7 @@ subtest 'push a release repo' => sub {
 
     my $clone_repo = create_clone( $clone_dir, $origin_repo, 'push' );
     chdir $clone_repo->work_tree;
-    run_cmd( add => 'module' );
+    run_cmd( update => 'module' );
     run_cmd( 'commit' );
 
     subtest 'origin repo should have the branch and tag' => sub {
@@ -52,7 +52,7 @@ subtest 'problem push, not fast-forward (module)' => sub {
     # Add change to release
     my $clone_repo = create_clone( $clone_dir, $origin_repo, 'not-ff' );
     chdir $clone_repo->work_tree;
-    my $result = run_cmd( add => 'module' );
+    my $result = run_cmd( update => 'module' );
     $result = run_cmd( 'commit' );
 
     # Add another change to module
@@ -74,7 +74,7 @@ subtest 'problem push, not fast-forward (origin)' => sub {
     # Add change to release
     my $clone_repo = create_clone( $clone_dir, $origin_repo, 'not-ff-origin' );
     chdir $clone_repo->work_tree;
-    my $result = run_cmd( add => 'module' );
+    my $result = run_cmd( update => 'module' );
     $result = run_cmd( 'commit' );
 
     # Add another change to module
@@ -83,7 +83,7 @@ subtest 'problem push, not fast-forward (origin)' => sub {
 
     # Change should be in origin
     chdir $origin_repo->work_tree;
-    $result = run_cmd( add => 'module' );
+    $result = run_cmd( update => 'module' );
     $result = run_cmd( 'commit' );
 
     # Try to push release
