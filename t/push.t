@@ -19,9 +19,10 @@ my $module_readme = catfile( $module_repo->work_tree, 'README' );
 my $origin_repo = create_release_repo( repo_root, 'origin',
     module => $module_repo,
 );
+$origin_repo->run( 'branch', 'safe' );
 my $clone_dir = repo_root;
 
-subtest 'push a release repo' => sub {
+subtest 'push a new release branch' => sub {
     write_file( $module_readme, 'TEST ONE' );
     commit_all( $module_repo );
 
@@ -29,18 +30,21 @@ subtest 'push a release repo' => sub {
     chdir $clone_repo->work_tree;
     run_cmd( update => 'module' );
     run_cmd( 'commit' );
+    $origin_repo->run( 'checkout', 'safe' );
+    run_cmd( 'push', 'v0.1' );
+    $origin_repo->run( 'checkout', 'master' );
 
     subtest 'origin repo should have the branch and tag' => sub {
         my @branches = repo_branches( $origin_repo );
-        cmp_deeply \@branches, superbagof( 'v0.1' );
+        cmp_deeply \@branches, bag( 'v0.1', 'master', 'safe' );
         my @tags = repo_tags( $origin_repo );
-        cmp_deeply \@tags, superbagof( 'v0.1.0' );
+        cmp_deeply \@tags, bag( 'v0.1.0' );
     };
     subtest 'module repo should have the branch and tag' => sub {
         my @branches = repo_branches( $module_repo );
-        cmp_deeply \@branches, superbagof( 'v0.1' );
+        cmp_deeply \@branches, bag( 'v0.1', 'master' );
         my @tags = repo_tags( $module_repo );
-        cmp_deeply \@tags, superbagof( 'v0.1.0' );
+        cmp_deeply \@tags, bag( 'v0.1.0' );
     };
 };
 
@@ -61,7 +65,9 @@ subtest 'problem push, not fast-forward (module)' => sub {
 
     # Try to push release
     chdir $clone_repo->work_tree;
+    $origin_repo->run( 'checkout', 'safe' );
     $result = get_cmd_result( 'push' );
+    $origin_repo->run( 'checkout', 'master' );
     isnt $result->exit_code, 0;
     like $result->error, qr{ERROR} or diag $result->error;
 };
@@ -82,13 +88,16 @@ subtest 'problem push, not fast-forward (origin)' => sub {
     commit_all( $module_repo );
 
     # Change should be in origin
+    $origin_repo->run( checkout => 'master' );
     chdir $origin_repo->work_tree;
     $result = run_cmd( update => 'module' );
     $result = run_cmd( 'commit' );
 
     # Try to push release
     chdir $clone_repo->work_tree;
+    $origin_repo->run( 'checkout', 'safe' );
     $result = get_cmd_result( 'push' );
+    $origin_repo->run( 'checkout', 'master' );
     isnt $result->exit_code, 0;
     like $result->error, qr{ERROR} or diag $result->error;
 };

@@ -61,17 +61,11 @@ augment execute => sub {
 sub branch_release {
     my ( $self, $git, $version ) = @_;
     $git->run( branch => $version );
-    if ( $git->has_remote( 'origin' ) ) {
-        $git->command( push => origin => "$version:$version" );
-    }
 }
 
 sub tag_release {
     my ( $self, $git, $version ) = @_;
     $git->run( tag => $version );
-    if ( $git->has_remote( 'origin' ) ) {
-        $git->command( push => origin => '--tags' );
-    }
 }
 
 1;
