@@ -64,7 +64,6 @@ augment execute => sub {
         $self->add_submodule( @$args );
         $git->run( commit => ( '.gitmodules', $args->[0] ), -m => "Adding $args->[0] to release" );
     }
-    $git->checkout;
 };
 
 sub update_submodule {

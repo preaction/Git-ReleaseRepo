@@ -11,7 +11,8 @@ use App::Cmd::Tester::CaptureExternal 'test_app';
 use Sub::Exporter -setup => {
     exports => [qw(
         get_cmd_result run_cmd is_repo_clean last_commit repo_branches repo_tags repo_refs
-        current_branch is_current_tag create_module_repo create_clone repo_root
+        current_branch is_current_tag create_module_repo create_clone repo_root commit_all
+        create_release_repo
     )],
 };
 
@@ -82,7 +83,8 @@ sub current_branch($) {
     my ( $git ) = @_;
     my $cmd = $git->command( 'branch' );
     # [* ] <branch>
-    return map { chomp; $_ } map { s/^[*\s]\s//; $_ } grep { /^[*]/ } readline $cmd->stdout;
+    my @branches = map { chomp; $_ } map { s/^[*\s]\s//; $_ } grep { /^[*]/ } readline $cmd->stdout;
+    return $branches[0];
 }
 
 sub is_current_tag($$) {
@@ -101,7 +103,13 @@ sub is_current_tag($$) {
 }
 
 sub create_module_repo {
-    my $repo = test_repository;
+    my ( $root, $name ) = @_;
+    $root ||= repo_root();
+    $name ||= 'module';
+    my $repo_dir = catdir( $root, $name );
+    mkdir $repo_dir;
+    Git::Repository->run( 'init', $repo_dir );
+    my $repo = Git::Repository->new( work_tree => $repo_dir );
     my $readme = catfile( $repo->work_tree, 'README' );
     write_file( $readme, 'TEST' );
     $repo->run( add => $readme );
@@ -115,11 +123,17 @@ sub create_clone {
     Git::Repository->run( clone => $of->work_tree, $name );
     chdir catdir( $root, $name );
     my $result = run_cmd( 'init', '--version_prefix', 'v' );
-    return Git::Repository->new( work_tree => catdir( $root, $name ) );
+    my $repo = Git::Repository->new( work_tree => catdir( $root, $name ) );
+    my $cmd = $repo->command( 'submodule', 'update', '--init' );
+    my @stdout = readline $cmd->stdout;
+    my @stderr = readline $cmd->stderr;
+    $cmd->close;
+    return $repo;
 }
 
 sub repo_root {
     state $clone_dir;
+    return $clone_dir if $clone_dir;
     if ( $ENV{NO_CLEANUP} ) {
         $clone_dir = File::Temp->newdir( CLEANUP => 0 );
         print "# Release root: $clone_dir\n";
@@ -129,6 +143,28 @@ sub repo_root {
         $clone_dir = File::Temp->newdir( CLEANUP => 1 );
     }
     return $clone_dir;
+}
+
+sub commit_all {
+    my ( $repo ) = @_;
+    my $cmd = $repo->command( 'commit', '-a', '-m', "commit_all" );
+    my @stdout = readline $cmd->stdout;
+    my @stderr = readline $cmd->stderr;
+    $cmd->close;
+}
+
+sub create_release_repo {
+    my ( $root, $name, %modules ) = @_;
+    my $repo_dir = catdir( $root, $name );
+    mkdir $repo_dir;
+    Git::Repository->run( 'init', $repo_dir );
+    my $repo = Git::Repository->new( work_tree => $repo_dir );
+    chdir $repo->work_tree;
+    run_cmd( 'init', '--version_prefix', 'v' );
+    for my $mod ( keys %modules ) {
+        run_cmd( add => $mod => $modules{$mod}->work_tree );
+    }
+    return $repo;
 }
 
 1;
