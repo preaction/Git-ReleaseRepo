@@ -46,16 +46,14 @@ augment execute => sub {
         # Check if the repo needs updating
         $repo->run( 'fetch', 'origin' );
         my %ref = $repo->show_ref;
-        ; use Data::Dumper; print Dumper \%ref;
+        #; use Data::Dumper; print Dumper \%ref;
         my $ref_spec = 'refs/remotes/origin/' . $branch;
         if ( $ref{HEAD} ne $ref{$ref_spec} ) {
             my ( $code, $stdout, $stderr ) = $repo->run_cmd( 'branch', '--contains', $ref{$ref_spec} );
-            print $stdout;
             my @branches = map { s/^\*\s+//; $_ } split /\n/, $stdout;
-            print join "\n", @branches;
             if ( !grep { $_ eq $branch } @branches ) {
                 # If we don't, we can pull
-                print "Your branch is out of date. Use `git release update` to update.\n";
+                print "Your branch is out of date. Use `git release pull` to update.\n";
             }
         }
     }

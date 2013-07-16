@@ -35,7 +35,7 @@ subtest 'behind origin' => sub {
     subtest 'checkout' => sub {
         chdir $clone_repo->work_tree;
         my $cmd = get_cmd_result( 'checkout', 'master' );
-        like $cmd->stdout, qr{git release update}, 'tells user what to do';
+        like $cmd->stdout, qr{git release pull}, 'tells user what to do';
     };
 };
 
