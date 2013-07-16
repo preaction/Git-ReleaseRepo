@@ -44,7 +44,11 @@ augment execute => sub {
     $repo->checkout( $branch );
     if ( $repo->has_remote( 'origin' ) ) {
         # Check if the repo needs updating
-        $repo->run( 'fetch', 'origin' );
+        my $cmd = $repo->command( 'fetch', 'origin' );
+        my @stdout = readline $cmd->stdout;
+        my @stderr = readline $cmd->stderr;
+        $cmd->close;
+
         my %ref = $repo->show_ref;
         #; use Data::Dumper; print Dumper \%ref;
         my $ref_spec = 'refs/remotes/origin/' . $branch;

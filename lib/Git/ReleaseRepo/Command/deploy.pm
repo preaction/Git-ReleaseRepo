@@ -71,7 +71,14 @@ augment execute => sub {
         die "Could not checkout '$version'.\nEXIT: " . $cmd->exit . "\nSTDERR: " . ( join "\n", @stderr )
             . "\nSTDOUT: " . ( join "\n", @stdout );
     }
-    $repo->run( submodule => 'update', '--init' );
+    $cmd = $repo->command( submodule => 'update', '--init' );
+    @stdout = readline $cmd->stdout;
+    @stderr = readline $cmd->stderr;
+    $cmd->close;
+    if ( $cmd->exit != 0 ) {
+        die "Could not update submodules.\nEXIT: " . $cmd->exit . "\nSTDERR: " . ( join "\n", @stderr )
+            . "\nSTDOUT: " . ( join "\n", @stdout );
+    }
     if ( $opt->{master} ) {
         my $cmd = $repo->command( submodule => 'foreach', 'git checkout master && git pull origin master' );
         my @stderr = readline $cmd->stderr;
