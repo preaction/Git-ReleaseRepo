@@ -120,7 +120,8 @@ sub create_module_repo {
 sub create_clone {
     my ( $root, $of, $name ) = @_;
     chdir $root;
-    Git::Repository->run( clone => $of->work_tree, $name );
+    # Must have file:// so it accepts remote pushes without complaining
+    Git::Repository->run( clone => "file://" . $of->work_tree, $name );
     chdir catdir( $root, $name );
     my $result = run_cmd( 'init', '--version_prefix', 'v' );
     my $repo = Git::Repository->new( work_tree => catdir( $root, $name ) );
