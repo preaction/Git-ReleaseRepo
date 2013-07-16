@@ -1,5 +1,4 @@
 
-use strict; use warnings;
 use Test::Most;
 use Cwd qw( getcwd );
 use File::Temp;
