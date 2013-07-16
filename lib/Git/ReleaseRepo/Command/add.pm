@@ -76,12 +76,20 @@ sub update_submodule {
     my $subgit = $git->submodule_git( $module );
     my $cmd = $subgit->command( 'fetch' );
     $cmd->close;
-    $cmd = $subgit->command( checkout => 'origin/' . $branch );
+    $cmd = $subgit->command( checkout => $branch );
     my @stdout = readline $cmd->stdout;
     my @stderr = readline $cmd->stderr;
     $cmd->close;
     if ( $cmd->exit != 0 ) {
-        die "Could not checkout 'origin/$branch': \nSTDERR: " . ( join "\n", @stderr )
+        die "Could not checkout '$branch': \nSTDERR: " . ( join "\n", @stderr )
+            . "\nSTDOUT: " . ( join "\n", @stdout );
+    }
+    $cmd = $subgit->command( pull => 'origin', $branch );
+    @stdout = readline $cmd->stdout;
+    @stderr = readline $cmd->stderr;
+    $cmd->close;
+    if ( $cmd->exit != 0 ) {
+        die "Could not pull 'origin' '$branch': \nSTDERR: " . ( join "\n", @stderr )
             . "\nSTDOUT: " . ( join "\n", @stdout );
     }
 }

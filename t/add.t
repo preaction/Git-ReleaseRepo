@@ -37,6 +37,12 @@ sub test_add {
         # We have not pushed
         my %refs = repo_refs $repo;
         isnt $refs{'refs/heads/' . $branch }, $refs{'refs/remotes/origin/' .  $branch }, 'not pushed';
+        # Modules are on the same branch
+        for my $mod ( @modules ) {
+            next unless -d catdir( $repo->work_tree, $mod );
+            my $mod_repo = Git::Repository->new( work_tree => catdir( $repo->work_tree, $mod ) );
+            is current_branch( $mod_repo ), $branch, "module repo $mod is $branch";
+        }
     };
 }
 
