@@ -20,6 +20,21 @@ augment execute => sub {
     my ( $since_version, %outdated, %diff );
     my $git = $self->git;
     my $bugfix = $git->current_branch ne 'master';
+
+    # We must fetch in order to get an accurate picture of the status
+    for my $git ( $self->git, map { $self->git->submodule_git( $_ ) } keys $self->git->submodule ) {
+        next unless $git->has_remote( 'origin' );
+        my $cmd = $git->command( 'fetch', 'origin' );
+        my @stderr = readline $cmd->stderr;
+        my @stdout = readline $cmd->stdout;
+        $cmd->close;
+        if ( $cmd->exit != 0 ) {
+            die "ERROR: Could not fetch.\nEXIT: " . $cmd->exit . "\nSTDERR: " . ( join "\n", @stderr )
+                . "\nSTDOUT: " . ( join "\n", @stdout );
+        }
+    }
+    # XXX: This takes a while, add a progress bar
+
     # Deploy branch
     if ( my $track = $self->config->{track} ) {
         my $current = $git->current_release;
