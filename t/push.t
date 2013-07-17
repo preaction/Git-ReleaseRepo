@@ -22,7 +22,7 @@ my $origin_repo = create_release_repo( repo_root, 'origin',
 $origin_repo->run( 'branch', 'safe' );
 my $clone_dir = repo_root;
 
-subtest 'push a new release branch' => sub {
+subtest 'push master and latest release branch' => sub {
     write_file( $module_readme, 'TEST ONE' );
     commit_all( $module_repo );
 
@@ -31,7 +31,7 @@ subtest 'push a new release branch' => sub {
     run_cmd( update => 'module' );
     run_cmd( 'commit' );
     $origin_repo->run( 'checkout', 'safe' );
-    run_cmd( 'push', 'v0.1' );
+    run_cmd( 'push' );
     $origin_repo->run( 'checkout', 'master' );
 
     subtest 'origin repo should have the branch and tag' => sub {

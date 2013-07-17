@@ -171,7 +171,7 @@ subtest 'initial creation' => sub {
 
 subtest 'add new module' => sub {
     chdir $rel_repo->work_tree;
-    my $result = run_cmd( 'add', 'foo', $foo_repo->work_tree );
+    my $result = run_cmd( 'add', 'foo', 'file://' . $foo_repo->work_tree );
 
     subtest 'repository is correct' => sub {
         is_repo_clean $rel_repo;
@@ -210,6 +210,7 @@ subtest 'update module' => sub {
 subtest 'first release' => sub {
     chdir $rel_repo->work_tree;
     my $result = run_cmd( 'commit' );
+    $result = run_cmd( 'push' );
 
     subtest 'release repository is correct'
         => test_repo_has_refs $rel_repo, branch => 'v0.1', tag => 'v0.1.0';
@@ -279,7 +280,7 @@ subtest 'update non-bugfix' => sub {
 
     subtest 'add new module' => sub {
         chdir $rel_repo->work_tree;
-        my $result = run_cmd( 'add', 'bar', $bar_repo->work_tree );
+        my $result = run_cmd( 'add', 'bar', 'file://' . $bar_repo->work_tree );
     };
     subtest 'release status is changed, not out-of-date'
         => test_release_status foo => undef, bar => 'changed';
@@ -293,6 +294,7 @@ subtest 'bugfix release' => sub {
     chdir $rel_repo->work_tree;
     run_cmd( 'checkout', '--bugfix' );
     my $result = run_cmd( 'commit' );
+    run_cmd( 'push' );
 
     subtest 'release repository is correct'
         => test_repo_has_refs $rel_repo, branch => 'v0.1', tag => [qw( v0.1.0 v0.1.1 )];
@@ -311,6 +313,7 @@ subtest 'second release' => sub {
     chdir $rel_repo->work_tree;
     run_cmd( 'checkout', 'master' );
     my $result = run_cmd( 'commit' );
+    run_cmd( 'push' );
 
     subtest 'release repository is correct'
         => test_repo_has_refs $rel_repo,
@@ -382,6 +385,7 @@ subtest 'bugfix release: v0.2.1' => sub {
         chdir $rel_repo->work_tree;
         run_cmd( 'checkout', '--bugfix' );
         my $result = run_cmd( 'commit' );
+        run_cmd( 'push' );
     };
 
     subtest 'release repository is correct'
