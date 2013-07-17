@@ -6,6 +6,7 @@ use warnings;
 use List::MoreUtils qw( uniq );
 use Moose;
 use Git::ReleaseRepo -command;
+use Progress::Any;
 
 with 'Git::ReleaseRepo::WithVersionPrefix';
 
@@ -22,7 +23,11 @@ augment execute => sub {
     my $bugfix = $git->current_branch ne 'master';
 
     # We must fetch in order to get an accurate picture of the status
-    for my $git ( $self->git, map { $self->git->submodule_git( $_ ) } keys $self->git->submodule ) {
+    my @repos = ( $self->git, map { $self->git->submodule_git( $_ ) } keys $self->git->submodule );
+    my $progress = Progress::Any->get_indicator( task => "fetch" );
+    $progress->pos( 0 );
+    $progress->target( ~~@repos );
+    for my $git ( @repos ) {
         next unless $git->has_remote( 'origin' );
         my $cmd = $git->command( 'fetch', 'origin' );
         my @stderr = readline $cmd->stderr;
@@ -32,8 +37,10 @@ augment execute => sub {
             die "ERROR: Could not fetch.\nEXIT: " . $cmd->exit . "\nSTDERR: " . ( join "\n", @stderr )
                 . "\nSTDOUT: " . ( join "\n", @stdout );
         }
+        my ( $name ) = $git->work_tree =~ m{/([^/]+)$};
+        $progress->update( message => "Fetched $name" );
     }
-    # XXX: This takes a while, add a progress bar
+    $progress->finish;
 
     # Deploy branch
     if ( my $track = $self->config->{track} ) {

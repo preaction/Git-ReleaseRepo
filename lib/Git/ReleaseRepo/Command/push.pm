@@ -6,6 +6,7 @@ use warnings;
 use Moose;
 use Git::ReleaseRepo -command;
 use Git::Repository;
+use Progress::Any;
 
 with 'Git::ReleaseRepo::WithVersionPrefix';
 
@@ -19,10 +20,20 @@ augment execute => sub {
                  : $self->git->current_branch ne 'master' ? ( $self->git->current_branch )
                  : ( 'master', $self->git->latest_release_branch )
                  ;
+    my $version_prog = Progress::Any->get_indicator( task => 'main' );
+    $version_prog->pos( 0 );
+    $version_prog->target( ~~@versions );
     for my $version ( @versions ) {
-        print "Pushing $version...\n";
-        for my $git ( $self->git, map { $self->git->submodule_git( $_ ) } keys $self->git->submodule ) {
-            next unless $git->has_remote( 'origin' );
+        my @repos = ( $self->git, map { $self->git->submodule_git( $_ ) } keys $self->git->submodule );
+        my $repo_prog = Progress::Any->get_indicator( task => "main.push" );
+        $repo_prog->pos( 0 );
+        $repo_prog->target( ~~@repos );
+        for my $git ( @repos ) {
+            my ( $name ) = $git->work_tree =~ m{/([^/]+)$};
+            unless ( $git->has_remote( 'origin' ) ) {
+                $repo_prog->update( message => "Skipped $name" );
+                next;
+            }
             my $cmd = $git->command( 'push', 'origin', "$version:$version" );
             my @stderr = readline $cmd->stderr;
             my @stdout = readline $cmd->stdout;
@@ -39,8 +50,12 @@ augment execute => sub {
                 die "ERROR: Could not push tags.\nEXIT: " . $cmd->exit . "\nSTDERR: " . ( join "\n", @stderr )
                     . "\nSTDOUT: " . ( join "\n", @stdout );
             }
+            $repo_prog->update( message => "Pushed $name" );
         }
+        $repo_prog->finish;
+        $version_prog->update( message => "Pushed $version" );
     }
+    $version_prog->finish;
     return 0;
 };
 
