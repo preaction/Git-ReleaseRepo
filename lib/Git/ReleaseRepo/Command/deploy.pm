@@ -50,7 +50,7 @@ augment execute => sub {
                 : $repo->latest_version;
     my $branch  = $opt->{master} ? "master"
                 : $opt->{branch} ? $opt->{branch}
-                : $repo->latest_release_branch;
+                : $repo->latest_release_branch( 'remotes/origin' );
     $cmd = $repo->command( checkout => $version );
     @stderr = readline $cmd->stderr;
     @stdout = readline $cmd->stdout;

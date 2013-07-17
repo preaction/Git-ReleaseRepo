@@ -108,13 +108,14 @@ sub latest_version {
 }
 
 sub list_release_branches {
-    my ( $self ) = @_;
-    return $self->list_version_refs( 'heads' );
+    my ( $self, $ref ) = @_;
+    $ref ||= 'heads';
+    return $self->list_version_refs( $ref );
 }
 
 sub latest_release_branch {
-    my ( $self ) = @_;
-    my @branches = $self->list_release_branches;
+    my ( $self, $ref ) = @_;
+    my @branches = $self->list_release_branches( $ref );
     return $branches[0];
 }
 
