@@ -7,7 +7,7 @@ use File::Spec::Functions qw( catfile catdir );
 
 # The list of subs to install into the object
 sub _keywords { qw(
-    submodule submodule_git outdated checkout list_version_refs
+    submodule submodule_git outdated_tag outdated_branch checkout list_version_refs
     list_versions latest_version list_release_branches latest_release_branch
     version_sort show_ref ls_remote has_remote has_branch release_prefix
     current_release current_branch run_cmd
@@ -41,15 +41,32 @@ sub submodule_git {
     return $git;
 }
 
-sub outdated {
-    my ( $self, $ref ) = @_;
-    $ref ||= "refs/heads/master";
+sub outdated_branch {
+    my ( $self, $branch ) = @_;
+    $branch ||= "master";
     my %submod_refs = $self->submodule;
     my @outdated;
     for my $submod ( keys %submod_refs ) {
+        my $ref = "refs/remotes/origin/$branch";
         my $subgit = $self->submodule_git( $submod );
-        my %remote = $subgit->ls_remote;
-        if ( !exists $remote{ $ref } || $submod_refs{ $submod } ne $remote{$ref} ) {
+        my %remote = $subgit->show_ref;
+        if ( !exists $remote{ $ref } || $submod_refs{ $submod } ne $remote{ $ref } ) {
+            #print "OUTDATED $submod: $submod_refs{$submod} ne $remote{$ref}\n";
+            push @outdated, $submod;
+        }
+    }
+    return @outdated;
+}
+
+sub outdated_tag {
+    my ( $self, $tag ) = @_;
+    my %submod_refs = $self->submodule;
+    my @outdated;
+    for my $submod ( keys %submod_refs ) {
+        my $ref = "refs/tags/$tag";
+        my $subgit = $self->submodule_git( $submod );
+        my %remote = $subgit->show_ref;
+        if ( !exists $remote{ $ref } || $submod_refs{ $submod } ne $remote{ $ref } ) {
             #print "OUTDATED $submod: $submod_refs{$submod} ne $remote{$ref}\n";
             push @outdated, $submod;
         }
@@ -156,6 +173,7 @@ sub ls_remote {
     }
     return wantarray ? %refs : \%refs;
 }
+#memoize( 'ls_remote', NORMALIZER => sub { return shift->work_tree } );
 
 sub has_remote {
     my ( $self, $name ) = @_;

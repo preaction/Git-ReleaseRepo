@@ -56,14 +56,14 @@ augment execute => sub {
     elsif ( $bugfix ) {
         my $rel_branch = $git->current_branch;
         $since_version = $git->latest_version( $rel_branch );
-        %outdated = map { $_ => 1 } $git->outdated( 'refs/heads/' . $rel_branch );
-        %diff = map { $_ => 1 } $git->outdated( 'refs/tags/' . $since_version );
+        %outdated = map { $_ => 1 } $git->outdated_branch( $rel_branch );
+        %diff = map { $_ => 1 } $git->outdated_tag( $since_version );
     }
     # Regular release
     else {
         $since_version = $git->latest_release_branch;
-        %outdated = map { $_ => 1 } $git->outdated( 'refs/heads/master' );
-        %diff = $since_version ? map { $_ => 1 } $git->outdated( 'refs/tags/' . $since_version . '.0' ) 
+        %outdated = map { $_ => 1 } $git->outdated_branch( 'master' );
+        %diff = $since_version ? map { $_ => 1 } $git->outdated_tag( $since_version . '.0' ) 
                 # If we haven't had a release yet, everything we have is different
                  : map { $_ => 1 } keys %{$git->submodule};
     }

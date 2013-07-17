@@ -45,7 +45,7 @@ augment execute => sub {
     my $git = $self->git;
     my $branch = $git->current_branch;
     if ( $opt->all ) {
-        $args = [$git->outdated];
+        $args = [$git->outdated_branch];
     }
     for my $mod ( @$args ) {
         $self->update_submodule( $mod, $branch );
