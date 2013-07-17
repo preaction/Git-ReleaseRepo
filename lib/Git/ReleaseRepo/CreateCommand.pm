@@ -8,8 +8,14 @@ extends 'Git::ReleaseRepo::Command';
 use File::Spec::Functions qw( catfile );
 use YAML qw( LoadFile DumpFile );
 
+override usage_desc => sub {
+    my ( $self ) = @_;
+    return super() . " <repo_url> [<repo_name>]";
+};
+
 sub update_config {
     my ( $self, $opt, $repo, $extra ) = @_;
+    $extra ||= {};
     my $config_file = catfile( $repo->git_dir, 'release' );
     my $config = -f $config_file ? LoadFile( $config_file ) : {};
 
@@ -25,8 +31,9 @@ sub update_config {
 
 sub validate_args {
     my ( $self, $opt, $args ) = @_;
-    $self->usage_error( "Must give a repository URL!" ) if ( @$args < 1 );
-    $self->usage_error( "Too many arguments" ) if ( @$args > 2 );
+    return $self->usage_error( "Must give a repository URL!" ) if ( @$args < 1 );
+    return $self->usage_error( "Too many arguments" ) if ( @$args > 2 );
+    return $self->usage_error( 'Must specify --version_prefix' ) unless $opt->{version_prefix};
 }
 
 around opt_spec => sub {
