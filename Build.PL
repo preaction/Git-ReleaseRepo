@@ -18,7 +18,7 @@ my %module_build_args = (
     "Doug Bell <preaction\@cpan.org>"
   ],
   "dist_name" => "Git-ReleaseRepo",
-  "dist_version" => "0.003",
+  "dist_version" => "0.004",
   "license" => "perl",
   "module_name" => "Git::ReleaseRepo",
   "recommends" => {},
@@ -30,6 +30,9 @@ my %module_build_args = (
     "File::Spec::Functions" => 0,
     "Git::Repository" => "1.26",
     "Moose" => "2.000",
+    "Progress::Any" => 0,
+    "Progress::Any::Output" => 0,
+    "Progress::Any::Output::TermProgressBarColor" => 0,
     "YAML" => "0.84"
   },
   "script_files" => [
