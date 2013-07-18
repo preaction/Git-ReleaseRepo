@@ -37,7 +37,9 @@ sub submodule_git {
     my $git = Git::Repository->new(
         work_tree => catdir( $self->work_tree, $module ),
     );
-    $git->release_prefix( $self->release_prefix );
+    if ( $self->release_prefix ) {
+        $git->release_prefix( $self->release_prefix );
+    }
     return $git;
 }
 
