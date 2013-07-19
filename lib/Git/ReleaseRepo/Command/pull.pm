@@ -35,8 +35,12 @@ augment execute => sub {
                     : $self->config->{track} ? $self->config->{track}
                     : $git->current_branch;
     my @repos = ( $self->git, map { $self->git->submodule_git( $_ ) } keys $self->git->submodule );
+    my $version_prog = Progress::Any->get_indicator( task => 'main' );
+    $version_prog->pos( 0 );
+    $version_prog->target( ~~@repos );
     my $version; # Filled in after the first pull
     for my $repo ( @repos ) {
+        my ( $name ) = $repo->work_tree =~ m{/([^/]+)$};
         if ( $repo->has_remote( 'origin' ) ) {
             my $cmd = $repo->command( checkout => $branch );
             my @stderr = readline $cmd->stderr;
@@ -74,7 +78,9 @@ augment execute => sub {
             die "Could not checkout $version\nEXIT: " . $cmd->exit . "\nSTDERR: " . ( join "\n", @stderr )
                 . "\nSTDOUT: " . ( join "\n", @stdout );
         }
+        $version_prog->update( message => "Pulled $name" );
     }
+    $version_prog->finish;
 };
 
 1;
