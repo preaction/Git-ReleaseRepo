@@ -51,6 +51,7 @@ augment execute => sub {
             print " (can update to $latest)";
         }
         print "\n";
+        return 0;
     }
     # Bugfix release
     elsif ( $bugfix ) {
