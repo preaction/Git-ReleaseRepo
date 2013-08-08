@@ -23,7 +23,7 @@ augment execute => sub {
     my $bugfix = $git->current_branch ne 'master';
 
     # We must fetch in order to get an accurate picture of the status
-    my @repos = ( $self->git, map { $self->git->submodule_git( $_ ) } keys $self->git->submodule );
+    my @repos = ( $self->git, map { $self->git->submodule_git( $_ ) } keys %{ $self->git->submodule } );
     my $progress = Progress::Any->get_indicator( task => "fetch" );
     $progress->pos( 0 );
     $progress->target( ~~@repos );

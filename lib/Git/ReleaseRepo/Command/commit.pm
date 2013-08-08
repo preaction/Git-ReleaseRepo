@@ -45,7 +45,7 @@ augment execute => sub {
     print "Starting release cycle $branch_version\n" if !$bugfix;
 
     # Release all modules too!
-    for my $module ( keys $git->submodule ) {
+    for my $module ( keys %{ $git->submodule } ) {
         my $subgit = $git->submodule_git( $module );
         if ( !$bugfix ) {
             $self->branch_release( $subgit, $branch_version );

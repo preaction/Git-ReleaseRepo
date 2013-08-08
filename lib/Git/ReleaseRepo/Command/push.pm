@@ -24,7 +24,7 @@ augment execute => sub {
     $version_prog->pos( 0 );
     $version_prog->target( ~~@versions );
     for my $version ( @versions ) {
-        my @repos = ( $self->git, map { $self->git->submodule_git( $_ ) } keys $self->git->submodule );
+        my @repos = ( $self->git, map { $self->git->submodule_git( $_ ) } keys %{ $self->git->submodule } );
         my $repo_prog = Progress::Any->get_indicator( task => "main.push" );
         $repo_prog->pos( 0 );
         $repo_prog->target( ~~@repos );
