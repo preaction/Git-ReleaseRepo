@@ -5,6 +5,7 @@ use strict;
 use warnings;
 use Moose;
 use File::Spec::Functions qw( catdir );
+use File::Basename qw( basename );
 use File::Copy qw( move );
 use Cwd qw( getcwd );
 
@@ -25,16 +26,20 @@ around opt_spec => sub {
 
 augment execute => sub {
     my ( $self, $opt, $args ) = @_;
-    my $repo_name = $args->[1];
+    my $repo_dir = $args->[1];
+    my $repo_name;
     my $rename_repo = 0;
-    if ( !$repo_name ) {
+    if ( !$repo_dir ) {
         # The automatic name will come from the release branch of the deployed repository, which
         # we won't have until we actually clone the repository, so create a temporary
         # directory instead
         $rename_repo = 1;
         $repo_name = join "-", $self->repo_name_from_url( $args->[0] ), 'deploy', time;
+        $repo_dir = catdir( getcwd, $repo_name );
     }
-    my $repo_dir = catdir( getcwd, $repo_name );
+    else {
+        $repo_name = basename($repo_dir);
+    }
     my $cmd = Git::Repository->command( clone => $args->[0], $repo_dir );
     my @stderr = readline $cmd->stderr;
     my @stdout = readline $cmd->stdout;
@@ -56,6 +61,7 @@ augment execute => sub {
     @stdout = readline $cmd->stdout;
     $cmd->close;
     if ( $cmd->exit != 0 ) {
+
         die "Could not checkout '$version'.\nEXIT: " . $cmd->exit . "\nSTDERR: " . ( join "\n", @stderr )
             . "\nSTDOUT: " . ( join "\n", @stdout );
     }

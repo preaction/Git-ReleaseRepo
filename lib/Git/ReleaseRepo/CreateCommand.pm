@@ -32,7 +32,7 @@ sub update_config {
 sub validate_args {
     my ( $self, $opt, $args ) = @_;
     return $self->usage_error( "Must give a repository URL!" ) if ( @$args < 1 );
-    return $self->usage_error( "Too many arguments" ) if ( @$args > 2 );
+    return $self->usage_error( "Too many arguments" ) if ( @$args > 3 );
     return $self->usage_error( 'Must specify --version_prefix' ) unless $opt->{version_prefix};
 }
 

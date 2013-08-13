@@ -3,8 +3,8 @@ use Test::Most;
 use Cwd qw( getcwd );
 use File::Temp;
 use Test::Git;
-use Git::ReleaseRepo::Test qw( run_cmd get_cmd_result create_module_repo repo_tags repo_branches 
-                            create_clone repo_root commit_all last_commit current_branch repo_refs 
+use Git::ReleaseRepo::Test qw( run_cmd get_cmd_result create_module_repo repo_tags repo_branches
+                            create_clone repo_root commit_all last_commit current_branch repo_refs
                             create_release_repo );
 use File::Spec::Functions qw( catdir catfile );
 use File::Slurp qw( write_file );
@@ -48,6 +48,7 @@ subtest 'clone' => sub {
     run_cmd( 'clone', 'file://' . $origin_repo->work_tree, 'clone', '--version_prefix', 'v' );
     subtest 'clone is correct'
         => test_clone $clone_dir, 'clone', [qw( module other )], { version_prefix => 'v' };
+    chdir $cwd;
 };
 
 subtest 'error without version_prefix' => sub {
@@ -65,14 +66,21 @@ subtest 'error with not enough arguments' => sub {
     isnt $code, 0, 'error with not enough arguments';
 };
 
-subtest 'default name' => sub {
+subtest 'default directory' => sub {
     chdir $clone_dir;
     my $name = basename( $origin_repo->work_tree );
     run_cmd( 'clone', 'file://' . $origin_repo->work_tree, '--version_prefix', 'v' );
     subtest 'clone is correct'
         => test_clone $clone_dir, $name, [qw( module other )], { version_prefix => 'v' };
+    chdir $cwd;
 };
 
-chdir $cwd;
+subtest 'directory provided' => sub {
+    my $name = 'origin-clone';
+    my $directory = catfile( $clone_dir, $name );
+    run_cmd( 'clone', 'file://' . $origin_repo->work_tree, $directory, '--version_prefix', 'v' );
+    subtest 'clone is still correct'
+        => test_clone $clone_dir, $name, [qw( module other )], { version_prefix => 'v' };
+};
 
 done_testing;
