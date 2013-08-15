@@ -25,15 +25,27 @@ sub validate_args {
     }
 }
 
+around opt_spec => sub {
+    my ( $orig, $self ) = @_;
+    return (
+        $self->$orig,
+        [ 'reference_root=s' => 'Specify a directory containing an existing module to reference' ],
+    );
+};
+
 augment execute => sub {
     my ( $self, $opt, $args ) = @_;
     my $git = $self->git;
     my $branch = $git->current_branch;
     my $repo = $args->[1];
     my $module = $args->[0];
-    $git->run(
-        submodule => add => '--', $repo, $module,
-    );
+    if ( $opt->{reference_root} ) {
+        my $reference = catdir( $opt->{reference_root}, $module );
+        $git->run( submodule => add => '--reference' => $reference, '--', $repo, $module );
+    }
+    else {
+        $git->run( submodule => add => '--', $repo, $module );
+    }
     $git->run( commit => ( '.gitmodules', $module ), -m => "Adding $module to release" );
 };
 

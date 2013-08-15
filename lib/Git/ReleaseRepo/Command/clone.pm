@@ -27,14 +27,35 @@ augment execute => sub {
     my @stdout = readline $cmd->stdout;
     my @stderr = readline $cmd->stderr;
     $cmd->close;
-    print @stderr if @stderr;
+    if ( $cmd->exit != 0 ) {
+        die "Could not clone '$args->[0]'.\nEXIT: " . $cmd->exit . "\nSTDERR: " . ( join "\n", @stderr )
+            . "\nSTDOUT: " . ( join "\n", @stdout );
+    }
 
     my $repo = Git::Repository->new( work_tree => $repo_dir );
-    $cmd = $repo->command( submodule => update => '--init' );
-    @stdout = readline $cmd->stdout;
-    @stderr = readline $cmd->stderr;
-    $cmd->close;
-    print @stderr if @stderr;
+    if ( $opt->{reference_root} ) {
+        for my $submodule ( keys $repo->submodule ) {
+            my $reference = catdir( $opt->{reference_root}, $submodule );
+            $cmd = $repo->command( submodule => 'update', '--init', '--reference' => $reference, $submodule);
+            @stdout = readline $cmd->stdout;
+            @stderr = readline $cmd->stderr;
+            $cmd->close;
+            if ( $cmd->exit != 0 ) {
+                die "Could not update submodule '$submodule'.\nEXIT: " . $cmd->exit . "\nSTDERR: " . ( join "\n", @stderr )
+                    . "\nSTDOUT: " . ( join "\n", @stdout );
+            }
+        }
+    }
+    else {
+        $cmd = $repo->command( submodule => update => '--init' );
+        @stdout = readline $cmd->stdout;
+        @stderr = readline $cmd->stderr;
+        $cmd->close;
+        if ( $cmd->exit != 0 ) {
+            die "Could not update submodules.\nEXIT: " . $cmd->exit . "\nSTDERR: " . ( join "\n", @stderr )
+                . "\nSTDOUT: " . ( join "\n", @stdout );
+        }
+    }
 
     $self->update_config( $opt, $repo );
 };

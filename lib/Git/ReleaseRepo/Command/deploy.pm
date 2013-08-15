@@ -65,13 +65,28 @@ augment execute => sub {
         die "Could not checkout '$version'.\nEXIT: " . $cmd->exit . "\nSTDERR: " . ( join "\n", @stderr )
             . "\nSTDOUT: " . ( join "\n", @stdout );
     }
-    $cmd = $repo->command( submodule => 'update', '--init' );
-    @stdout = readline $cmd->stdout;
-    @stderr = readline $cmd->stderr;
-    $cmd->close;
-    if ( $cmd->exit != 0 ) {
-        die "Could not update submodules.\nEXIT: " . $cmd->exit . "\nSTDERR: " . ( join "\n", @stderr )
-            . "\nSTDOUT: " . ( join "\n", @stdout );
+    if ( $opt->{reference_root} ) {
+        for my $submodule ( keys $repo->submodule ) {
+            my $reference = catdir( $opt->{reference_root}, $submodule );
+            $cmd = $repo->command( submodule => 'update', '--init', '--reference' => $reference, $submodule);
+            @stdout = readline $cmd->stdout;
+            @stderr = readline $cmd->stderr;
+            $cmd->close;
+            if ( $cmd->exit != 0 ) {
+                die "Could not update submodule '$submodule'.\nEXIT: " . $cmd->exit . "\nSTDERR: " . ( join "\n", @stderr )
+                    . "\nSTDOUT: " . ( join "\n", @stdout );
+            }
+        }
+    }
+    else {
+        $cmd = $repo->command( submodule => 'update', '--init', );
+        @stdout = readline $cmd->stdout;
+        @stderr = readline $cmd->stderr;
+        $cmd->close;
+        if ( $cmd->exit != 0 ) {
+            die "Could not update submodules.\nEXIT: " . $cmd->exit . "\nSTDERR: " . ( join "\n", @stderr )
+                . "\nSTDOUT: " . ( join "\n", @stdout );
+        }
     }
     if ( $opt->{master} ) {
         my $cmd = $repo->command( submodule => 'foreach', 'git checkout master && git pull origin master' );
@@ -86,7 +101,8 @@ augment execute => sub {
     if ( $rename_repo ) {
         $repo_name = join "-", $self->repo_name_from_url( $args->[0] ), $branch;
         my $new_repo_dir = catdir( getcwd, $repo_name );
-        move( $repo_dir, $new_repo_dir );
+        move( $repo_dir, $new_repo_dir )
+            or die "Could not deploy repository to $new_repo_dir\n$!";
         $repo = Git::Repository->new( work_tree => $new_repo_dir );
     }
     # Set new default repo and configuration

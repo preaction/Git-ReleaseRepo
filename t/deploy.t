@@ -36,7 +36,7 @@ sub test_clone($$$$) {
         ok -d catdir( $dir, $name ), 'dir is named correctly';
         subtest 'submodules are initialized' => sub {
             for my $mod ( @$modules ) {
-                ok -f catfile( $dir, $name, $mod, 'README' ), 'submodule "module" is initialized';
+                ok -f catfile( $dir, $name, $mod, 'README' ), "submodule '$mod' is initialized";
             }
         };
         my $conf_file = catfile( $clone_dir, $name, '.git', 'release' );
@@ -50,8 +50,27 @@ sub test_clone($$$$) {
 subtest 'deploy' => sub {
     chdir $clone_dir;
     run_cmd( 'deploy', 'file://' . $origin_repo->work_tree, 'deploy', '--version_prefix', 'v' );
-    subtest 'deploy is correct'
+    subtest 'relative deploy is correct'
         => test_clone $clone_dir, 'deploy', [qw( module other )], { track => 'v0.1', version_prefix => 'v' };
+    chdir $cwd;
+
+    my $name = 'prd-deploy';
+    my $directory = catfile( $clone_dir, $name );
+    run_cmd( 'deploy', 'file://' . $origin_repo->work_tree, $directory, '--version_prefix', 'v' );
+    subtest 'absolute deploy is correct'
+        => test_clone $clone_dir, $name, [qw( module other )], { track => 'v0.1', version_prefix => 'v' };
+};
+
+subtest 'deploy with reference' => sub {
+    chdir $clone_dir;
+    run_cmd( 'deploy', 'file://' . $origin_repo->work_tree, 'referencing', '--reference_root', $clone_dir, '--version_prefix', 'v' );
+    subtest 'deploy is correct'
+        => test_clone $clone_dir, 'referencing', [qw( module other )], { track => 'v0.1', version_prefix => 'v' };
+    for my $mod (qw( module other )) {
+        my $submodule_git = catfile( $clone_dir, 'referencing', '.git', 'modules', $mod);
+        ok -f catfile( $submodule_git, 'objects', 'info', 'alternates' ),
+            "submodule '$mod' has alternates reference";
+    }
     chdir $cwd;
 };
 
@@ -77,14 +96,6 @@ subtest 'default directory' => sub {
     subtest 'deploy is correct'
         => test_clone $clone_dir, $name, [qw( module other )], { track => 'v0.1', version_prefix => 'v' };
     chdir $cwd;
-};
-
-subtest 'directory provided' => sub {
-    my $name = 'origin-v0.1';
-    my $directory = catfile( $clone_dir, $name );
-    run_cmd( 'deploy', 'file://' . $origin_repo->work_tree, $directory, '--version_prefix', 'v' );
-    subtest 'deploy is still correct'
-        => test_clone $clone_dir, $name, [qw( module other )], { track => 'v0.1', version_prefix => 'v' };
 };
 
 done_testing;

@@ -24,7 +24,7 @@ my $origin_repo = create_release_repo( repo_root, 'origin',
     module => $module_repo,
     other => $other_repo,
 );
-my $clone_dir = repo_root;
+our $clone_dir = repo_root;
 
 sub test_clone($$$$) {
     my ( $dir, $name, $modules, $expect_conf ) = @_;
@@ -32,7 +32,7 @@ sub test_clone($$$$) {
         ok -d catdir( $dir, $name ), 'dir is named correctly';
         subtest 'submodules are initialized' => sub {
             for my $mod ( @$modules ) {
-                ok -f catfile( $dir, $name, $mod, 'README' ), 'submodule "module" is initialized';
+                ok -f catfile( $dir, $name, $mod, 'README' ), "submodule '$mod' is initialized";
             }
         };
         my $conf_file = catfile( $clone_dir, $name, '.git', 'release' );
@@ -46,8 +46,27 @@ sub test_clone($$$$) {
 subtest 'clone' => sub {
     chdir $clone_dir;
     run_cmd( 'clone', 'file://' . $origin_repo->work_tree, 'clone', '--version_prefix', 'v' );
+    subtest 'relative clone is correct'
+        => test_clone $clone_dir, 'origin', [qw( module other )], { version_prefix => 'v' };
+    chdir $cwd;
+
+    my $name = 'custom-clone';
+    my $directory = catfile( $clone_dir, $name );
+    run_cmd( 'clone', 'file://' . $origin_repo->work_tree, $directory, '--version_prefix', 'v' );
+    subtest 'absolute clone is correct'
+        => test_clone $clone_dir, $name, [qw( module other )], { version_prefix => 'v' };
+};
+
+subtest 'clone with reference' => sub {
+    chdir $clone_dir;
+    run_cmd( 'clone', 'file://' . $origin_repo->work_tree, 'referencing', '--reference_root', $clone_dir, '--version_prefix', 'v' );
     subtest 'clone is correct'
-        => test_clone $clone_dir, 'clone', [qw( module other )], { version_prefix => 'v' };
+        => test_clone $clone_dir, 'referencing', [qw( module other )], { version_prefix => 'v' };
+    for my $mod (qw( module other )) {
+        my $submodule_git = catfile( $clone_dir, 'referencing', '.git', 'modules', $mod);
+        ok -f catfile( $submodule_git, 'objects', 'info', 'alternates' ),
+            "submodule '$mod' has alternates reference";
+    }
     chdir $cwd;
 };
 
@@ -67,6 +86,10 @@ subtest 'error with not enough arguments' => sub {
 };
 
 subtest 'default directory' => sub {
+    # drop down one dir to avoid cloning over origin
+    local $clone_dir = catdir( $clone_dir, 'default' );
+    mkdir $clone_dir;
+
     chdir $clone_dir;
     my $name = basename( $origin_repo->work_tree );
     run_cmd( 'clone', 'file://' . $origin_repo->work_tree, '--version_prefix', 'v' );
@@ -75,12 +98,5 @@ subtest 'default directory' => sub {
     chdir $cwd;
 };
 
-subtest 'directory provided' => sub {
-    my $name = 'origin-clone';
-    my $directory = catfile( $clone_dir, $name );
-    run_cmd( 'clone', 'file://' . $origin_repo->work_tree, $directory, '--version_prefix', 'v' );
-    subtest 'clone is still correct'
-        => test_clone $clone_dir, $name, [qw( module other )], { version_prefix => 'v' };
-};
 
 done_testing;
