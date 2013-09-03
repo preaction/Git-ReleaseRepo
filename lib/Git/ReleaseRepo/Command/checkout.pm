@@ -35,20 +35,29 @@ augment execute => sub {
     my ( $self, $opt, $args ) = @_;
     my $repo = $self->git;
     my $branch;
+    if ( $repo->has_remote( 'origin' ) ) {
+        my $cmd = $repo->command( 'fetch', 'origin' );
+        my @stdout = readline $cmd->stdout;
+        my @stderr = readline $cmd->stderr;
+        $cmd->close;
+    }
+
     if ( $opt->bugfix ) {
-        $branch = $repo->latest_release_branch;
+        # We may not have pulled in a while, or ever.
+        if ( $repo->has_remote( 'origin' ) ) {
+            $branch = $repo->latest_release_branch( 'remotes/origin' );
+        }
+        else {
+            $branch = $repo->latest_release_branch;
+        }
     }
     else {
         $branch = $args->[0];
     }
     $repo->checkout( $branch );
+
     if ( $repo->has_remote( 'origin' ) ) {
         # Check if the repo needs updating
-        my $cmd = $repo->command( 'fetch', 'origin' );
-        my @stdout = readline $cmd->stdout;
-        my @stderr = readline $cmd->stderr;
-        $cmd->close;
-
         my %ref = $repo->show_ref;
         #; use Data::Dumper; print Dumper \%ref;
         my $ref_spec = 'refs/remotes/origin/' . $branch;

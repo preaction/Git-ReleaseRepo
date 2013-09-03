@@ -98,5 +98,27 @@ subtest 'default directory' => sub {
     chdir $cwd;
 };
 
+subtest 'clone after release' => sub {
+    my $module_repo = create_module_repo( repo_root, 'module_release' );
+    my $module_readme = catfile( $module_repo->work_tree, 'README' );
+    my $origin_repo = create_release_repo( repo_root, 'origin_release',
+        module_release => $module_repo,
+    );
+    chdir $origin_repo->work_tree;
+    run_cmd( 'commit' );
+
+    chdir $clone_dir;
+    run_cmd( 'clone', 'file://' . $origin_repo->work_tree, 'after_release', '--version_prefix', 'v' );
+    subtest 'relative clone is correct'
+        => test_clone $clone_dir, 'after_release', [qw( module_release )], { version_prefix => 'v' };
+    chdir catdir( $clone_dir, 'after_release' );
+    run_cmd( 'checkout', '--bugfix' );
+
+    my $repo = Git::Repository->new( work_tree => catdir( $clone_dir, 'after_release' ) );
+    is $repo->current_branch, 'v0.1';
+
+    chdir $cwd;
+};
+
 
 done_testing;
