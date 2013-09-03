@@ -41,6 +41,7 @@ around opt_spec => sub {
     return (
         $self->$orig,
         [ 'version_prefix:s' => 'Set the version prefix of the release repository' ],
+        [ 'reference_root=s' => 'Specify a directory containing existing submodules to reference' ],
     );
 };
 

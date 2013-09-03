@@ -3,8 +3,8 @@ use Test::Most;
 use Cwd qw( getcwd );
 use File::Temp;
 use Test::Git;
-use Git::ReleaseRepo::Test qw( run_cmd get_cmd_result create_module_repo repo_tags repo_branches 
-                            create_clone repo_root commit_all last_commit current_branch repo_refs 
+use Git::ReleaseRepo::Test qw( run_cmd get_cmd_result create_module_repo repo_tags repo_branches
+                            create_clone repo_root commit_all last_commit current_branch repo_refs
                             create_release_repo );
 use File::Spec::Functions qw( catdir catfile );
 use File::Slurp qw( write_file );
@@ -51,6 +51,23 @@ subtest 'add a new module' => sub {
     chdir $clone_repo->work_tree;
     run_cmd( 'add', 'new-mod', $new_mod->work_tree );
     subtest 'new module added' => test_add( $clone_repo, master => 'new-mod', '.gitmodules' );
+};
+
+subtest 'add with reference' => sub {
+    my $new_mod = create_module_repo;
+
+    # create reference
+    chdir $clone_dir;
+    my (@lines) = Git::Repository->run( clone => "file://" . $new_mod->work_tree, 'reference-mod' );
+
+    my $clone_repo = create_clone( $clone_dir, $origin_repo, 'add-reference' );
+    chdir $clone_repo->work_tree;
+    run_cmd( 'add', 'reference-mod', $new_mod->work_tree, '--reference_root', $clone_dir );
+    subtest 'new module added' => test_add( $clone_repo, master => 'reference-mod', '.gitmodules' );
+
+    my $submodule_git = catfile( $clone_repo->git_dir, 'modules', 'reference-mod');
+    ok -f catfile( $submodule_git, 'objects', 'info', 'alternates' ),
+        "submodule has alternates reference";
 };
 
 chdir $cwd;
