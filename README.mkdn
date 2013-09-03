@@ -4,7 +4,7 @@ Git::ReleaseRepo - Manage a release repository of Git submodules
 
 # VERSION
 
-version 0.005
+version 0.006
 
 # DESCRIPTION
 
@@ -43,9 +43,10 @@ The same branches are created in submodules to allow for bugfix commits.
 
 New bugfix versions are created from the release branch.
 
-# AUTHOR
+# AUTHORS
 
-Doug Bell <preaction@cpan.org>
+- Doug Bell <preaction@cpan.org>
+- Andrew Goudzwaard <adgoudz@gmail.com>
 
 # COPYRIGHT AND LICENSE
 

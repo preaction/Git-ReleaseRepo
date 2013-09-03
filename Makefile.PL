@@ -10,7 +10,7 @@ use ExtUtils::MakeMaker 6.30;
 
 my %WriteMakefileArgs = (
   "ABSTRACT" => "Manage a release repository of Git submodules",
-  "AUTHOR" => "Doug Bell <preaction\@cpan.org>",
+  "AUTHOR" => "Doug Bell <preaction\@cpan.org>, Andrew Goudzwaard <adgoudz\@gmail.com>",
   "BUILD_REQUIRES" => {
     "Module::Build" => "0.3601"
   },
@@ -43,7 +43,7 @@ my %WriteMakefileArgs = (
     "Test::Compile" => 0,
     "Test::Most" => 0
   },
-  "VERSION" => "0.005",
+  "VERSION" => "0.006",
   "test" => {
     "TESTS" => "t/*.t"
   }

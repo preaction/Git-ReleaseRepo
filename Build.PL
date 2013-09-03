@@ -15,10 +15,11 @@ my %module_build_args = (
   },
   "dist_abstract" => "Manage a release repository of Git submodules",
   "dist_author" => [
-    "Doug Bell <preaction\@cpan.org>"
+    "Doug Bell <preaction\@cpan.org>",
+    "Andrew Goudzwaard <adgoudz\@gmail.com>"
   ],
   "dist_name" => "Git-ReleaseRepo",
-  "dist_version" => "0.005",
+  "dist_version" => "0.006",
   "license" => "perl",
   "module_name" => "Git::ReleaseRepo",
   "recommends" => {},
