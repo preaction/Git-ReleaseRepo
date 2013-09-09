@@ -112,12 +112,24 @@ subtest 'clone after release' => sub {
     subtest 'relative clone is correct'
         => test_clone $clone_dir, 'after_release', [qw( module_release )], { version_prefix => 'v' };
 
+    subtest 'status in newly-cloned repository' => sub {
+        chdir catdir( $clone_dir, 'after_release' );
+        my $result = run_cmd( 'status' );
+        eq_or_diff $result->stdout, "Changes since v0.1.0\n--------------------\n";
+    };
+
     subtest 'checkout bugfix branch' => sub {
         chdir catdir( $clone_dir, 'after_release' );
         run_cmd( 'checkout', '--bugfix' );
 
         my $repo = Git::Repository->new( work_tree => catdir( $clone_dir, 'after_release' ) );
         is $repo->current_branch, 'v0.1';
+    };
+
+    subtest 'bugfix status in newly-cloned repository' => sub {
+        chdir catdir( $clone_dir, 'after_release' );
+        my $result = run_cmd( 'status' );
+        eq_or_diff $result->stdout, "Changes since v0.1.0\n--------------------\n";
     };
 
     subtest 'release and push bugfix' => sub {
