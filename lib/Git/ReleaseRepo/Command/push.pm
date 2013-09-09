@@ -31,6 +31,12 @@ augment execute => sub {
         for my $git ( @repos ) {
             my ( $name ) = $git->work_tree =~ m{/([^/]+)$};
             unless ( $git->has_remote( 'origin' ) ) {
+                # This submodule, for some reason, only exists inside this repository
+                $repo_prog->update( message => "Skipped $name" );
+                next;
+            }
+            unless ( $git->has_branch( $version ) ) {
+                # Can't push a refspec that doesn't exist
                 $repo_prog->update( message => "Skipped $name" );
                 next;
             }

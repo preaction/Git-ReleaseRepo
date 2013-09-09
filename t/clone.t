@@ -111,11 +111,29 @@ subtest 'clone after release' => sub {
     run_cmd( 'clone', 'file://' . $origin_repo->work_tree, 'after_release', '--version_prefix', 'v' );
     subtest 'relative clone is correct'
         => test_clone $clone_dir, 'after_release', [qw( module_release )], { version_prefix => 'v' };
-    chdir catdir( $clone_dir, 'after_release' );
-    run_cmd( 'checkout', '--bugfix' );
 
-    my $repo = Git::Repository->new( work_tree => catdir( $clone_dir, 'after_release' ) );
-    is $repo->current_branch, 'v0.1';
+    subtest 'checkout bugfix branch' => sub {
+        chdir catdir( $clone_dir, 'after_release' );
+        run_cmd( 'checkout', '--bugfix' );
+
+        my $repo = Git::Repository->new( work_tree => catdir( $clone_dir, 'after_release' ) );
+        is $repo->current_branch, 'v0.1';
+    };
+
+    subtest 'release and push bugfix' => sub {
+        chdir catdir( $clone_dir, 'after_release' );
+        run_cmd( 'commit' );
+
+        my $repo = Git::Repository->new( work_tree => catdir( $clone_dir, 'after_release' ) );
+        $repo->release_prefix( 'v' );
+        is $repo->current_branch, 'v0.1';
+        cmp_deeply [ $repo->list_versions ], bag( 'v0.1.1', 'v0.1.0' );
+
+        run_cmd( 'push' );
+        my $origin = Git::Repository->new( work_tree => catdir( $clone_dir, 'origin_release' ) );
+        $origin->release_prefix( 'v' );
+        cmp_deeply [ $origin->list_versions ], bag( 'v0.1.1', 'v0.1.0' );
+    };
 
     chdir $cwd;
 };
