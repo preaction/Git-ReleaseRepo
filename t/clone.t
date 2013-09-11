@@ -106,6 +106,7 @@ subtest 'clone after release' => sub {
     );
     chdir $origin_repo->work_tree;
     run_cmd( 'commit' );
+    run_cmd( 'push' );
 
     chdir $clone_dir;
     run_cmd( 'clone', 'file://' . $origin_repo->work_tree, 'after_release', '--version_prefix', 'v' );
@@ -115,7 +116,7 @@ subtest 'clone after release' => sub {
     subtest 'status in newly-cloned repository' => sub {
         chdir catdir( $clone_dir, 'after_release' );
         my $result = run_cmd( 'status' );
-        eq_or_diff $result->stdout, "Changes since v0.1.0\n--------------------\n";
+        eq_or_diff $result->stdout, "Changes since v0.1\n------------------\n";
     };
 
     subtest 'checkout bugfix branch' => sub {
@@ -146,6 +147,21 @@ subtest 'clone after release' => sub {
         $origin->release_prefix( 'v' );
         cmp_deeply [ $origin->list_versions ], bag( 'v0.1.1', 'v0.1.0' );
     };
+
+    subtest 'status in newly-released repository' => sub {
+        chdir catdir( $clone_dir, 'after_release' );
+        run_cmd( 'checkout', 'master' );
+        my $result = run_cmd( 'status' );
+        eq_or_diff $result->stdout, "Changes since v0.1\n------------------\n";
+    };
+
+    subtest 'bugfix status in newly-cloned repository' => sub {
+        chdir catdir( $clone_dir, 'after_release' );
+        run_cmd( 'checkout', '--bugfix' );
+        my $result = run_cmd( 'status' );
+        eq_or_diff $result->stdout, "Changes since v0.1.1\n--------------------\n";
+    };
+
 
     chdir $cwd;
 };

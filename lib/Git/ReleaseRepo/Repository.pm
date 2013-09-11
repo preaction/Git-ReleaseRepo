@@ -53,7 +53,6 @@ sub outdated_branch {
         my $subgit = $self->submodule_git( $submod );
         my %remote = $subgit->show_ref;
         if ( !exists $remote{ $ref } || $submod_refs{ $submod } ne $remote{ $ref } ) {
-            #print "OUTDATED $submod: $submod_refs{$submod} ne $remote{$ref}\n";
             push @outdated, $submod;
         }
     }
@@ -69,7 +68,6 @@ sub outdated_tag {
         my $subgit = $self->submodule_git( $submod );
         my %remote = $subgit->show_ref;
         if ( !exists $remote{ $ref } || $submod_refs{ $submod } ne $remote{ $ref } ) {
-            #print "OUTDATED $submod: $submod_refs{$submod} ne $remote{$ref}\n";
             push @outdated, $submod;
         }
     }
