@@ -34,7 +34,7 @@ augment execute => sub {
 
     my $repo = Git::Repository->new( work_tree => $repo_dir );
     if ( $opt->{reference_root} ) {
-        for my $submodule ( keys $repo->submodule ) {
+        for my $submodule ( keys %{ $repo->submodule } ) {
             my $reference = catdir( $opt->{reference_root}, $submodule );
             $cmd = $repo->command( submodule => 'update', '--init', '--reference' => $reference, $submodule);
             @stdout = readline $cmd->stdout;
