@@ -62,7 +62,9 @@ augment execute => sub {
     }
     # Regular release
     else {
-        $since_version = $git->latest_release_branch( 'remotes/origin' );
+        $since_version = $git->has_remote( 'origin' )
+                       ? $git->latest_release_branch( 'remotes/origin' )
+                       : $git->latest_release_branch;
         %outdated = map { $_ => 1 } $git->outdated_branch( 'master' );
         %diff = $since_version ? map { $_ => 1 } $git->outdated_tag( $since_version . '.0' ) 
                 # If we haven't had a release yet, everything we have is different
