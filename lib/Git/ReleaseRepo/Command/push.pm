@@ -37,8 +37,23 @@ augment execute => sub {
             }
             unless ( $git->has_branch( $version ) ) {
                 # Can't push a refspec that doesn't exist
-                $repo_prog->update( message => "Skipped $name" );
-                next;
+                $repo_prog->update( message => "Fetching $name" );
+                my $cmd = $git->command( 'fetch', 'origin' );
+                my @stderr = readline $cmd->stderr;
+                my @stdout = readline $cmd->stdout;
+                $cmd->close;
+                if ( $cmd->exit != 0 ) {
+                    die "ERROR: Could not fetch.\nEXIT: " . $cmd->exit . "\nSTDERR: " . ( join "\n", @stderr )
+                        . "\nSTDOUT: " . ( join "\n", @stdout );
+                }
+                $cmd = $git->command( checkout => $version );
+                @stderr = readline $cmd->stderr;
+                @stdout = readline $cmd->stdout;
+                $cmd->close;
+                if ( $cmd->exit != 0 ) {
+                    die "Could not checkout branch $version\nEXIT: " . $cmd->exit . "\nSTDERR: " . ( join "\n", @stderr )
+                        . "\nSTDOUT: " . ( join "\n", @stdout );
+                }
             }
             my $cmd = $git->command( 'push', 'origin', "$version:$version" );
             my @stderr = readline $cmd->stderr;
