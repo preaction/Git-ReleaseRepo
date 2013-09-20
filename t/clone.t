@@ -159,6 +159,20 @@ subtest 'clone after release' => sub {
         cmp_deeply [ $deploy->list_versions ], bag( 'v0.1.1', 'v0.1.0' );
     };
 
+    subtest 'status in newly-released repository' => sub {
+        chdir catdir( $clone_dir, 'after_release' );
+        run_cmd( 'checkout', 'master' );
+        my $result = run_cmd( 'status' );
+        eq_or_diff $result->stdout, "Changes since v0.1\n------------------\n";
+    };
+
+    subtest 'bugfix status in newly-cloned repository' => sub {
+        chdir catdir( $clone_dir, 'after_release' );
+        run_cmd( 'checkout', '--bugfix' );
+        my $result = run_cmd( 'status' );
+        eq_or_diff $result->stdout, "Changes since v0.1.1\n--------------------\n";
+    };
+
     chdir $cwd;
 };
 
