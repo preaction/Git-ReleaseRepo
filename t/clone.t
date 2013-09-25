@@ -133,7 +133,10 @@ subtest 'clone after release' => sub {
         eq_or_diff $result->stdout, "Changes since v0.1.0\n--------------------\n";
     };
 
-    subtest 'release and push bugfix' => sub {
+    subtest 'release, push, and pull bugfix' => sub {
+        chdir $clone_dir;
+        run_cmd( 'deploy', 'file://' . $origin_repo->work_tree, 'deployed_release', '--version_prefix', 'v' );
+
         chdir catdir( $clone_dir, 'after_release' );
         run_cmd( 'commit' );
 
@@ -146,6 +149,14 @@ subtest 'clone after release' => sub {
         my $origin = Git::Repository->new( work_tree => catdir( $clone_dir, 'origin_release' ) );
         $origin->release_prefix( 'v' );
         cmp_deeply [ $origin->list_versions ], bag( 'v0.1.1', 'v0.1.0' );
+
+        chdir catdir( $clone_dir, 'deployed_release' );
+        my $deploy = Git::Repository->new( work_tree => catdir( $clone_dir, 'deployed_release' ) );
+        $deploy->release_prefix( 'v' );
+
+        run_cmd( 'pull' );
+        is $deploy->current_branch, '(detached from v0.1.1)';
+        cmp_deeply [ $deploy->list_versions ], bag( 'v0.1.1', 'v0.1.0' );
     };
 
     subtest 'status in newly-released repository' => sub {
@@ -161,7 +172,6 @@ subtest 'clone after release' => sub {
         my $result = run_cmd( 'status' );
         eq_or_diff $result->stdout, "Changes since v0.1.1\n--------------------\n";
     };
-
 
     chdir $cwd;
 };
