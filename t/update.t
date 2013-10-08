@@ -3,8 +3,8 @@ use Test::Most;
 use Cwd qw( getcwd );
 use File::Temp;
 use Test::Git;
-use Git::ReleaseRepo::Test qw( run_cmd get_cmd_result create_module_repo repo_tags repo_branches 
-                            create_clone repo_root commit_all last_commit current_branch repo_refs 
+use Git::ReleaseRepo::Test qw( run_cmd get_cmd_result create_module_repo repo_tags repo_branches
+                            create_clone repo_root commit_all last_commit current_branch repo_refs
                             create_release_repo );
 use File::Spec::Functions qw( catdir catfile );
 use File::Slurp qw( write_file );
@@ -65,6 +65,32 @@ subtest 'update all' => sub {
     chdir $clone_repo->work_tree;
     run_cmd( 'update', '-a' );
     subtest 'all existing modules updated' => test_update( $clone_repo, master => 'module', 'other' );
+
+    subtest 'on branch' => sub {
+        chdir $origin_repo->work_tree;
+        run_cmd( 'status' ); # fetch submodules
+        run_cmd( 'update', '-a' ); # update master (important)
+        run_cmd( 'commit' ); # new release
+        run_cmd( 'push' ); # push submodule refs
+
+        chdir $module_repo->work_tree;
+        $module_repo->run( checkout => 'v0.1');
+        write_file( $module_readme, "Add all on branch" );
+        commit_all( $module_repo );
+
+        chdir $other_repo->work_tree;
+        $other_repo->run( checkout => 'v0.1');
+        write_file( $other_readme, "Add all on branch" );
+        commit_all( $other_repo );
+
+        my $clone_repo = create_clone( $clone_dir, $origin_repo, 'add-branch' );
+        chdir $clone_repo->work_tree;
+        run_cmd( 'checkout', 'v0.1' );
+        run_cmd( 'update', '-a' );
+
+        subtest 'all point release modules updated' => test_update( $clone_repo, 'v0.1' => 'module', 'other' );
+    };
+
 };
 
 chdir $cwd;
