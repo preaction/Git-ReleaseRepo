@@ -28,7 +28,7 @@ around opt_spec => sub {
 
 sub validate_args {
     my ( $self, $opt, $args ) = @_;
-    if ( $opt->all ) { 
+    if ( $opt->all ) {
         if ( @$args ) {
             return $self->usage_error( "--all does not make sense with module names to update" );
         }
@@ -45,7 +45,7 @@ augment execute => sub {
     my $git = $self->git;
     my $branch = $git->current_branch;
     if ( $opt->all ) {
-        $args = [$git->outdated_branch];
+        $args = [$git->outdated_branch( $branch )];
     }
     for my $mod ( @$args ) {
         $self->update_submodule( $mod, $branch );
@@ -54,7 +54,14 @@ augment execute => sub {
                 ? "Updating $args->[0]"
                 : "Updating all outdated:\n"
                     . join "\n", map { sprintf "\t\%s", $_ } sort @$args;
-    $git->run( commit => ( @$args ), -m => $message );
+    my $cmd = $git->command( commit => ( @$args ), -m => $message );
+    my @stdout = readline $cmd->stdout;
+    my @stderr = readline $cmd->stderr;
+    $cmd->close;
+    if ( $cmd->exit != 0 ) {
+        die "Could not commit updates: \nSTDERR: " . ( join "\n", @stderr )
+            . "\nSTDOUT: " . ( join "\n", @stdout );
+    }
 };
 
 sub update_submodule {
