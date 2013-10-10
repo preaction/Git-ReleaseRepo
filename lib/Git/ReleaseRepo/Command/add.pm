@@ -37,8 +37,8 @@ augment execute => sub {
     my ( $self, $opt, $args ) = @_;
     my $git = $self->git;
     my $branch = $git->current_branch;
-    my $repo = $args->[1];
-    my $module = $args->[0];
+    my $repo = $args->[0];
+    my $module = $args->[1] || $self->repo_name_from_url( $repo );
     if ( $opt->{reference_root} ) {
         my $reference = catdir( $opt->{reference_root}, $module );
         $git->run( submodule => add => '--reference' => $reference, '--', $repo, $module );

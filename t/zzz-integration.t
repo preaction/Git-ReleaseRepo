@@ -171,7 +171,7 @@ subtest 'initial creation' => sub {
 
 subtest 'add new module' => sub {
     chdir $rel_repo->work_tree;
-    my $result = run_cmd( 'add', 'foo', 'file://' . $foo_repo->work_tree );
+    my $result = run_cmd( 'add', 'file://' . $foo_repo->work_tree, 'foo' );
 
     subtest 'repository is correct' => sub {
         is_repo_clean $rel_repo;
@@ -280,7 +280,7 @@ subtest 'update non-bugfix' => sub {
 
     subtest 'add new module' => sub {
         chdir $rel_repo->work_tree;
-        my $result = run_cmd( 'add', 'bar', 'file://' . $bar_repo->work_tree );
+        my $result = run_cmd( 'add', 'file://' . $bar_repo->work_tree, 'bar' );
     };
     subtest 'release status is changed, not out-of-date'
         => test_release_status foo => undef, bar => 'changed';

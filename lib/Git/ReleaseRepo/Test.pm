@@ -163,7 +163,7 @@ sub create_release_repo {
     chdir $repo->work_tree;
     run_cmd( 'init', '--version_prefix', 'v' );
     for my $mod ( keys %modules ) {
-        run_cmd( add => $mod => $modules{$mod}->work_tree );
+        run_cmd( add => $modules{$mod}->work_tree, $mod );
     }
     return $repo;
 }

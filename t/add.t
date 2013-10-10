@@ -49,8 +49,16 @@ subtest 'add a new module' => sub {
     my $new_mod = create_module_repo;
     my $clone_repo = create_clone( $clone_dir, $origin_repo, 'add-new' );
     chdir $clone_repo->work_tree;
-    run_cmd( 'add', 'new-mod', $new_mod->work_tree );
+    run_cmd( 'add', $new_mod->work_tree, 'new-mod' );
     subtest 'new module added' => test_add( $clone_repo, master => 'new-mod', '.gitmodules' );
+};
+
+subtest 'add a new module (default name)' => sub {
+    my $new_mod = create_module_repo( repo_root, 'new-module-default' );
+    my $clone_repo = create_clone( $clone_dir, $origin_repo, 'add-new-default' );
+    chdir $clone_repo->work_tree;
+    run_cmd( 'add', $new_mod->work_tree );
+    subtest 'new module added' => test_add( $clone_repo, master => 'new-module-default', '.gitmodules' );
 };
 
 subtest 'add with reference' => sub {
@@ -62,7 +70,7 @@ subtest 'add with reference' => sub {
 
     my $clone_repo = create_clone( $clone_dir, $origin_repo, 'add-reference' );
     chdir $clone_repo->work_tree;
-    run_cmd( 'add', 'reference-mod', $new_mod->work_tree, '--reference_root', $clone_dir );
+    run_cmd( 'add', $new_mod->work_tree, 'reference-mod', '--reference_root', $clone_dir );
     subtest 'new module added' => test_add( $clone_repo, master => 'reference-mod', '.gitmodules' );
 
     my $submodule_git = catfile( $clone_repo->git_dir, 'modules', 'reference-mod');
